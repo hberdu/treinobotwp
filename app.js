@@ -2,9 +2,22 @@ const express = require("express");
 const { Client } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
 const fs = require("fs");
-const path = require("path"); // Importar o módulo path
+const path = require('path');
 const app = express();
-const client = new Client({});
+const port = 3000;
+
+
+const wwebVersion = '2.2412.54';
+const client = new Client({
+  puppeteer: {
+      // puppeteer args here
+  },
+  // locking the wweb version
+  webVersionCache: {
+      type: 'remote',
+      remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${wwebVersion}.html`,
+  },
+});
 
 // Import the functions you need from the SDKs you need
 const { initializeApp } = require("firebase/app");
@@ -37,39 +50,36 @@ app.get("/", (req, res) => {
   });
 });
 
-// Serve the index.html file for /iniciar-chatbot
-app.get("/iniciar-chatbot", (req, res) => {
+// Serve the chatbot.html file
+app.get("/chatbot", async (req, res) => {
   const indexPath = path.join(__dirname, "public", "chatbot.html");
   fs.readFile(indexPath, "utf8", (err, data) => {
     if (err) {
       console.error("Error reading HTML file:", err);
       return res.status(500).send("Error loading page.");
+    } else {
+      console.log("SUCESSO");
+      try {
+        client.initialize();
+        client.on("qr", async (qr) => {
+          try {
+            const qrCodeUrl = await generateQRCode(qr);
+            // Substituir o placeholder pelo QR Code
+            const htmlWithQrCode = data.replace("{{QR_CODE}}", qrCodeUrl);
+            res.send(htmlWithQrCode);
+          } catch (error) {
+            console.error("Erro ao gerar QR code:", error);
+            res.status(500).send("Erro ao gerar QR code.");
+          }
+        });
+      } catch (error) {
+        console.error("Erro ao iniciar o chatbot:", error);
+        res.status(500).send("Erro ao iniciar o chatbot.");
+      }
     }
-    res.send(data);
   });
 });
 
-// Endpoint para iniciar o chatbot e gerar o QR code
-app.get("/iniciar-chatbot", async (req, res) => {
-  try {
-    // Inicializar o cliente do WhatsApp
-    client.initialize();
-
-    // Gerar o QR code
-    client.on("qr", async (qr) => {
-      try {
-        const qrCodeUrl = await generateQRCode(qr);
-        res.json({ qrcode: qrCodeUrl, status: "Aguardando escaneamento" });
-      } catch (error) {
-        console.error("Erro ao gerar QR code:", error);
-        res.status(500).json({ qrcode: null, status: "Erro ao gerar QR code" });
-      }
-    });
-  } catch (error) {
-    console.error("Erro ao iniciar o chatbot:", error);
-    res.status(500).json({ qrcode: null, status: "Erro ao iniciar o chatbot" });
-  }
-});
 
 // Função para gerar o QR code
 async function generateQRCode(qrData) {
