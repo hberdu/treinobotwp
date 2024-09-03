@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TreinoBot - Administração</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1 class="logo">TreinoBot - Administração</h1>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#">ChatBot</a></li>
+          <li><a href="#">Treinos</a></li>
+          <li><a href="#">Contato</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="featured">
+      <h2 class="section-title">ChatBot</h2>
+      <div class="product">
+        <img alt="QR Code">
+        <p class="product-price"></p>
+        <a class="btn">Regenerar QR Code</a>
+      </div>
+      <!-- Adicione mais produtos aqui conforme necessário -->
+    </section>
+  </main>
+
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <div id="qrcode"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2024 Seu Site. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+</body>
+<!-- Inclua a biblioteca qrcode.js -->
+<script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+<script>/* Scripts do Modal */
+  // Pega o modal
+  var modal = document.getElementById("myModal");
+
+  // Pega o botão que abre o modal
+  var btn = document.querySelector(".btn");
+
+  // Pega o elemento <span> que fecha o modal
+  var span = document.getElementsByClassName("close")[0];
+
+  // Quando o usuário clica no botão, abre o modal e gera o QR Code
+  btn.onclick = function() {
+    modal.style.display = "block";
+
+    // URL para o QR Code (pode ser o link do WhatsApp)
+    var url = "https://web.whatsapp.com/";
+
+    // Opções para o QR Code (tamanho, correção de erro, etc.)
+    var qrOptions = {
+      text: url,
+      width: 200,
+      height: 200
+    };
+
+    // Gera o QR Code dentro do elemento com id="qrcode"
+    new QRCode(document.getElementById("qrcode"), qrOptions);
+  }
+
+  // Quando o usuário clica no <span> (x), fecha o modal
+  span.onclick = function() {
+    modal.style.display = "none";
+  }
+
+  // Quando o usuário clica fora do modal, ele fecha
+  window.onclick = function(event) {
+    if (event.target == modal) {
+      modal.style.display = "none";
+    }
+  }
+</script>
+<style>/* Style do Modal */
+  /* Estilos para o modal */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+  }
+
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 5px;
+    text-align: center;
+    position: relative;
+  }
+
+  #qrcode {
+    margin: 0 auto;
+  }
+
+  /* Estilos para o botão de fechar o modal */
+  .close {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .close:hover,
+  .close:focus {
+    color: black;
+    text-decoration: none;
+  }
+</style>
+<style>/* Reset de Estilos */
+  * 
+    /* Estilos para o modal */
+    .modal {
+      display: none; /* Por padrão, o modal não é exibido */
+      position: fixed; /* Posição fixa na tela */
+      z-index: 1; /* Coloca o modal acima de todo o conteúdo */
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto; /* Adiciona scroll se o conteúdo for maior que o modal */
+      background-color: rgba(0,0,0,0.4); /* Fundo semi-transparente */
+    }
+  
+    .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto; /* Centraliza o modal na tela */
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 600px;
+      border-radius: 5px;
+    }
+  
+    /* Estilos para o botão de fechar o modal */
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+  
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+  
+  body {
+    font-family: 'Playfair Display', serif;
+    background-color: #f4f4f4;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  
+  .header {
+    background-color: #333;
+    color: #fff;
+    padding: 20px 0;
+  }
+  
+  .header .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+  }
+  
+  .nav-links {
+    list-style-type: none;
+    display: flex;
+  }
+  
+  .nav-links li {
+    margin-right: 20px;
+  }
+  
+  .nav-links li:last-child {
+    margin-right: 0;
+  }
+  
+  .nav-links a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 16px;
+  }
+  
+  .main {
+    padding: 20px 0;
+  }
+  
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .product {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .product img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+  
+  .product-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  
+  .product-price {
+    font-size: 18px;
+    color: #333;
+  }
+  
+  .btn {
+    display: inline-block;
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+  }
+  
+  .btn:hover {
+    background-color: #555;
+  }
+  
+  .footer {
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 20px 0;
+  }
+</style>
+</html>
