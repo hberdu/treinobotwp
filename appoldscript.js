@@ -1,3 +1,31 @@
+const express = require("express");
+const { Client } = require("whatsapp-web.js");
+const qrcode = require("qrcode");
+const fs = require("fs");
+const path = require("path"); // Importar o módulo path
+const app = express();
+const client = new Client({});
+
+// Import the functions you need from the SDKs you need
+const { initializeApp } = require("firebase/app");
+const { getFirestore, doc, getDoc, updateDoc, setDoc, collection, getDocs } = require("firebase/firestore");
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyD2prl1jdMUdkNdQkidySfYFwTdLkinZV4",
+  authDomain: "treinobot.firebaseapp.com",
+  databaseURL: "https://treinobot-default-rtdb.firebaseio.com",
+  projectId: "treinobot",
+  storageBucket: "treinobot.appspot.com",
+  messagingSenderId: "720957000050",
+  appId: "1:720957000050:web:b753545187bf4f186ff5eb"
+};
+
+// Initialize Firebase
+const appFirebase = initializeApp(firebaseConfig);
+const db = getFirestore();
+
+
 // Função para inserir/atualizar um atleta
 async function inserirAtleta(nomeUsuario) {
   // Verificar se o atleta já existe no banco

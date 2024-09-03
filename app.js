@@ -73,9 +73,11 @@ app.get("/iniciar-chatbot", async (req, res) => {
 
 // Função para gerar o QR code
 async function generateQRCode(qrData) {
+  console.log("Gerando QR code...");
   return new Promise((resolve, reject) => {
     qrcode.toDataURL(qrData, (err, url) => {
       if (err) {
+        
         reject(err);
       } else {
         resolve(url);
