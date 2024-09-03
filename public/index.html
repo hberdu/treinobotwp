@@ -12,9 +12,10 @@
       <h1 class="logo">TreinoBot - Administração</h1>
       <nav>
         <ul class="nav-links">
-          <li><a href="#">ChatBot</a></li>
-          <li><a href="#">Treinos</a></li>
-          <li><a href="#">Contato</a></li>
+          <li><a href="#index">Home</a></li>
+          <li><a href="#iniciar-chatbot">ChatBot</a></li>
+        </ul>
+        </ul>
         </ul>
       </nav>
     </div>
@@ -24,9 +25,10 @@
     <section class="featured">
       <h2 class="section-title">ChatBot</h2>
       <div class="product">
-        <img alt="QR Code">
+        <img src="logo-whatsapp.jpg" alt="Código Gerado">
+        <h3 class="product-title">QR Code</h3>
         <p class="product-price"></p>
-        <a class="btn">Regenerar QR Code</a>
+        <a href="http://localhost:3000/iniciar-chatbot" class="btn">Regenerar QR Code</a>
       </div>
       <!-- Adicione mais produtos aqui conforme necessário -->
     </section>
@@ -41,7 +43,7 @@
 
   <footer class="footer">
     <div class="container">
-      <p>&copy; 2024 Seu Site. Todos os direitos reservados.</p>
+      <p>&copy; 2024 Treino bot. Todos os direitos reservados.</p>
     </div>
   </footer>
 </body>
@@ -60,18 +62,13 @@
   // Quando o usuário clica no botão, abre o modal e gera o QR Code
   btn.onclick = function() {
     modal.style.display = "block";
-
-    // URL para o QR Code (pode ser o link do WhatsApp)
-    var url = "https://web.whatsapp.com/";
-
-    // Opções para o QR Code (tamanho, correção de erro, etc.)
+    var qrcode = generateQRCode();
     var qrOptions = {
       text: url,
       width: 200,
       height: 200
     };
 
-    // Gera o QR Code dentro do elemento com id="qrcode"
     new QRCode(document.getElementById("qrcode"), qrOptions);
   }
 
