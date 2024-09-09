@@ -27,7 +27,7 @@
     <section class="featured">
       <div class="product">
         <h3 class="product-title">QR Code</h3>
-        <a href="generate-qr" class="btn" id="generate-qr-code">Gerar QR Code</a>
+        <a href="/chatbot" class="btn" id="generate-qr-code">Gerar QR Code</a>
       </div>
     </section>
   </main>
@@ -53,14 +53,12 @@
     var btn = document.getElementById("generate-qr-code");
     var span = document.getElementsByClassName("close")[0];
 
-    // Função para abrir o modal e gerar o QR code
-    btn.onclick = async function(event) {
-      event.preventDefault(); // Impede o comportamento padrão do link
+    // Função para abrir o modal
+    btn.onclick = async function() {
       try {
         const response = await fetch("/generate-qr");
-        const data = await response.json(); // Recebe o JSON contendo a URL do QR code
+        const data = await response.json();
         if (data.qrcode) {
-          // Define o src da imagem do QR code no modal
           document.getElementById("qrcode-img").src = data.qrcode;
           modal.style.display = "block";
         } else {
@@ -84,6 +82,7 @@
     };
   </script>
 
+  <!-- Seu CSS existente -->
   <style>
     * {
       margin: 0;

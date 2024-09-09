@@ -1,29 +1,27 @@
 const express = require("express");
 const { Client } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
+const qrcodeTerminal = require("qrcode-terminal");
 const fs = require("fs");
-const path = require('path');
+const path = require("path");
 const app = express();
 const port = 3000;
 
+const client = new Client();
 
-const wwebVersion = '2.2412.54';
-const client = new Client({
-  puppeteer: {
-      // puppeteer args here
-  },
-  // locking the wweb version
-  webVersionCache: {
-      type: 'remote',
-      remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${wwebVersion}.html`,
-  },
-});
-
-// Import the functions you need from the SDKs you need
+// Importar as funções necessárias do SDK do Firebase
 const { initializeApp } = require("firebase/app");
-const { getFirestore, doc, getDoc, updateDoc, setDoc, collection, getDocs } = require("firebase/firestore");
+const {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+  setDoc,
+  collection,
+  getDocs,
+} = require("firebase/firestore");
 
-// Your web app's Firebase configuration
+// Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD2prl1jdMUdkNdQkidySfYFwTdLkinZV4",
   authDomain: "treinobot.firebaseapp.com",
@@ -31,112 +29,79 @@ const firebaseConfig = {
   projectId: "treinobot",
   storageBucket: "treinobot.appspot.com",
   messagingSenderId: "720957000050",
-  appId: "1:720957000050:web:b753545187bf4f186ff5eb"
+  appId: "1:720957000050:web:b753545187bf4f186ff5eb",
 };
 
-// Initialize Firebase
+// Inicializar o Firebase
 const appFirebase = initializeApp(firebaseConfig);
 const db = getFirestore();
 
-// Serve the index.html file
-app.get("/", (req, res) => {
-  const indexPath = path.join(__dirname, "public", "index.html");
-  fs.readFile(indexPath, "utf8", (err, data) => {
-    if (err) {
-      console.error("Error reading HTML file:", err);
-      return res.status(500).send("Error loading page.");
-    }
-    res.send(data);
-  });
+// Inicializar o cliente do WhatsApp Web
+client.initialize();
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor iniciado na porta ${PORT}`);
 });
 
-// Serve the chatbot.html file
-app.get("/chatbot", async (req, res) => {
-  const indexPath = path.join(__dirname, "public", "chatbot.html");
-  fs.readFile(indexPath, "utf8", (err, data) => {
-    if (err) {
-      console.error("Error reading HTML file:", err);
-      return res.status(500).send("Error loading page.");
-    } else {
-      console.log("SUCESSO");
-      try {
-        client.initialize();
-        client.on("qr", async (qr) => {
-          try {
-            const qrCodeUrl = await generateQRCode(qr);
-            // Substituir o placeholder pelo QR Code
-            const htmlWithQrCode = data.replace("{{QR_CODE}}", qrCodeUrl);
-            res.send(htmlWithQrCode);
-          } catch (error) {
-            console.error("Erro ao gerar QR code:", error);
-            res.status(500).send("Erro ao gerar QR code.");
-          }
-        });
-      } catch (error) {
-        console.error("Erro ao iniciar o chatbot:", error);
-        res.status(500).send("Erro ao iniciar o chatbot.");
-      }
-    }
-  });
+client.on("qr", (qr) => {
+  // Generate and scan this code with your phone
+  qrcodeTerminal.generate(qr, { small: true });
 });
-
-
-// Função para gerar o QR code
-async function generateQRCode(qrData) {
-  console.log("Gerando QR code...");
-  return new Promise((resolve, reject) => {
-    qrcode.toDataURL(qrData, (err, url) => {
-      if (err) {
-        
-        reject(err);
-      } else {
-        resolve(url);
-      }
-    });
-  });
-}
 
 // Função para inserir/atualizar um atleta
 async function inserirAtleta(nomeUsuario) {
-  // Verificar se o atleta já existe no banco
-  const atletaRef = doc(db, "atletas", nomeUsuario);
-  const atletaDoc = await getDoc(atletaRef);
+  try {
+    // Verificar se o atleta já existe no banco
+    const atletaRef = doc(db, "atletas", nomeUsuario);
+    const atletaDoc = await getDoc(atletaRef);
 
-  if (atletaDoc.exists()) {
-    // Atualizar o número de treinos
-    const novoNumeroTreinos = atletaDoc.data().treinos + 1;
-    await updateDoc(atletaRef, {
-      treinos: novoNumeroTreinos,
-    });
-    return `Número de treinos de *${nomeUsuario}* atualizado para ${novoNumeroTreinos}`;
-  } else {
-    // Criar novo atleta
-    await setDoc(atletaRef, {
-      nome: nomeUsuario,
-      treinos: 1,
-    });
-    return `Atleta *${nomeUsuario}*, seu primeiro treino foi gerado.`;
+    if (atletaDoc.exists()) {
+      // Atualizar o número de treinos
+      const dadosAtleta = atletaDoc.data();
+      if (!dadosAtleta || typeof dadosAtleta.treinos === 'undefined') {
+        throw new Error('Dados do atleta estão incompletos ou inválidos.');
+      }
+      const novoNumeroTreinos = (dadosAtleta.treinos || 0) + 1;
+      await updateDoc(atletaRef, {
+        treinos: novoNumeroTreinos,
+      });
+      return `Número de treinos de *${nomeUsuario}* atualizado para ${novoNumeroTreinos}`;
+    } else {
+      // Criar novo atleta
+      await setDoc(atletaRef, {
+        nome: nomeUsuario,
+        treinos: 1,
+      });
+      return `Atleta *${nomeUsuario}*, seu primeiro treino foi gerado.`;
+    }
+  } catch (error) {
+    console.error('Erro ao inserir/atualizar atleta:', error);
+    return 'Erro ao inserir/atualizar atleta.';
   }
 }
+
 
 // Função para processar a mensagem
 async function processarMensagem(mensagem, nomeUsuario) {
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      console.log("Inserção de treino concluída com sucesso!");
       const { segunda, sexta, semanasRestantes } = getSegundaEsextaDaSemanaAtual();
       const texto = `
         Projeto semana ${semanaAtual}/${semanasNoAno} 
         (${segunda.toLocaleDateString()} - ${sexta.toLocaleDateString()})
         ${semanasRestantes} semanas restantes no ano
       `;
+      console.log(texto);
 
       const progressoSemanal = await getProgressoSemanal(nomeUsuario);
-
       const tabelaTreinos = await gerarTabelaTreinos();
 
+      console.log(`${mensagemAtleta}\n${texto}\nProgresso semanal: ${progressoSemanal}\n${tabelaTreinos}`);
+
       return `${mensagemAtleta}\n${texto}\nProgresso semanal: ${progressoSemanal}\n${tabelaTreinos}`;
+
     } catch (error) {
       console.error("Erro ao inserir/atualizar atleta:", error);
       return "Ocorreu um erro ao processar sua solicitação.";
@@ -180,8 +145,8 @@ function getSegundaEsextaDaSemanaAtual() {
 // Função para obter o nome do usuário com base no número
 async function getNomeUsuario(numero) {
   try {
-    const chat = await client.getChatById(numero);
-    return chat.name;
+    const chat = await client.getChatById(numero); // Certifique-se de que a função seja assíncrona e utilize await
+    return chat ? chat.name : "Nome do usuário não encontrado";
   } catch (error) {
     console.error("Erro ao obter nome do usuário:", error);
     return "Nome do usuário não encontrado";
@@ -189,7 +154,7 @@ async function getNomeUsuario(numero) {
 }
 
 // Função para gerar uma tabela com todos os treinos
-async function gerarTabelaTreinos() {
+const gerarTabelaTreinos = async () => {
   try {
     let tabela = "Tabela de Treinos:\n";
     const atletasRef = collection(db, "atletas");
@@ -216,16 +181,14 @@ async function gerarTabelaTreinos() {
       } else if (index === 1) {
         tabela += " 🥈"; // Emoji de medalha de prata
       }
-
       tabela += "\n";
     });
-
     return tabela;
   } catch (error) {
     console.error("Erro ao gerar tabela de treinos:", error);
     return "Erro ao gerar tabela de treinos.";
   }
-}
+};
 
 // Função para obter o progresso semanal do usuário
 async function getProgressoSemanal(nomeUsuario) {
@@ -247,20 +210,15 @@ async function getProgressoSemanal(nomeUsuario) {
 
 // Exemplo de uso da função
 client.on("ready", () => {
-  console.log("Aplicação Online");
+  console.log("QR code escaneado, Aplicação online");
 });
 
 // Exemplo de uso da função
-client.on("message", async (message) => {
-  if (message.body.startsWith("!treino") && message.from.endsWith("@g.us")) {
+client.on('message', async (msg) => {
+  if (msg.body.startsWith('!treino') && msg.from.endsWith('@g.us')) {
     // Verifica se a mensagem é de um grupo
-    const nomeUsuario = await getNomeUsuario(message.author);
-    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
-    client.sendMessage(message.from, mensagemRetorno);
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    const mensagemRetorno = await processarMensagem('!treino', nomeUsuario);
+    msg.reply(mensagemRetorno);
   }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor iniciado na porta ${PORT}`);
 });
