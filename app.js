@@ -177,21 +177,16 @@ const gerarTabelaTreinos = async () => {
       });
     });
 
-    // Ordenar atletas pelo progresso semanal em ordem decrescente
     atletas.sort((a, b) => b.progressoSemanal - a.progressoSemanal);
 
-    // Calcular o comprimento máximo para os campos de nome
-    const maxNomeLength = Math.max(...atletas.map((atleta) => atleta.nome.length)) + 2; // +2 para garantir espaço extra
+    const maxNomeLength = Math.max(...atletas.map((atleta) => atleta.nome.length)) + 2;
     const maxTreinosLength = Math.max(...atletas.map((atleta) => String(atleta.treinos).length), 2);
 
-    // Construir a tabela com os dados ordenados
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
 
-      // Alinhar nome e número de treinos
-      let linha = `${atleta.nome.padEnd(maxNomeLength)}   ${String(atleta.treinos).padStart(2)} treinos`;
+      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(atleta.treinos).padStart(2)} treinos`;
 
-      // Adicionar emojis para o primeiro, segundo e terceiro colocados
       if (index === 0) {
         linha += " 🥇";
       } else if (index === 1) {
@@ -200,8 +195,7 @@ const gerarTabelaTreinos = async () => {
         linha += " 🥉";
       }
 
-      // Adicionar o progresso ao lado do número de treinos, alinhando tudo à direita
-      linha = linha.padEnd(30) + progressoTexto + "\n"; // Ajuste o valor de padEnd(30) conforme necessário
+      linha = linha.padEnd(30) + progressoTexto + "\n";
       tabela += linha;
     });
 
