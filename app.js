@@ -189,7 +189,7 @@ const gerarTabelaTreinos = async () => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
 
       // Alinhar nome e número de treinos
-      let linha = `${atleta.nome.padEnd(maxNomeLength)}   ${String(atleta.treinos).padStart(2)} treinos`;
+      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(atleta.treinos).padStart(2)} treinos`;
 
       // Adicionar emojis para o primeiro, segundo e terceiro colocados
       if (index === 0) {
