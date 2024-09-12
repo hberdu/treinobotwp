@@ -74,7 +74,7 @@ async function inserirAtleta(nomeUsuario) {
         meta: meta,
       });
 
-      return `Número de treinos de *${nomeUsuario}* atualizado para ${novoNumeroTreinos}.`;
+      return `Número de treinos de ${nomeUsuario} atualizado para ${novoNumeroTreinos}.`;
     } else {
       await setDoc(atletaRef, {
         nome: nomeUsuario,
@@ -83,7 +83,7 @@ async function inserirAtleta(nomeUsuario) {
         progressoSemanal: 0,
         meta: 5,
       });
-      return `Atleta *${nomeUsuario}*, seu primeiro treino foi gerado.`;
+      return `Atleta ${nomeUsuario}, seu primeiro treino foi gerado.`;
     }
   } catch (error) {
     console.error("Erro ao inserir/atualizar atleta:", error);
@@ -95,22 +95,25 @@ async function processarMensagem(mensagem, nomeUsuario) {
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, sexta, semanasRestantes } = getSegundaEsextaDaSemanaAtual();
+      const { segunda, sexta, semanasRestantes } =
+        getSegundaEsextaDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
 (${segunda.toLocaleDateString()} - ${sexta.toLocaleDateString()})
 ${semanasRestantes} semanas restantes no ano
       `;
-      console.log(texto);
 
       const progressoSemanal = await getProgressoSemanal(nomeUsuario);
-
       const tabelaTreinos = await gerarTabelaTreinos();
-      console.log("Tabela de Treinos:\n", tabelaTreinos);
 
-      const mensagemFinal = `${mensagemAtleta}\n${texto}\n${tabelaTreinos}`;
+      // Formatar mensagem com crases para texto monoespaçado
+      const mensagemFinal = `\`\`\`
+${mensagemAtleta}
+${texto}
+${tabelaTreinos}
+\`\`\``;
+
       console.log("Mensagem final:\n", mensagemFinal);
-
       return mensagemFinal;
     } catch (error) {
       console.error("Erro ao processar a mensagem:", error);
@@ -177,25 +180,28 @@ const gerarTabelaTreinos = async () => {
       });
     });
 
+    // Ordena os atletas pelo progresso semanal
     atletas.sort((a, b) => b.progressoSemanal - a.progressoSemanal);
 
-    const maxNomeLength = Math.max(...atletas.map((atleta) => atleta.nome.length)) + 2;
-    const maxTreinosLength = Math.max(...atletas.map((atleta) => String(atleta.treinos).length), 2);
+    // Calcula o comprimento máximo de nome e treinos para formatação
+    const maxNomeLength = Math.max(...atletas.map((atleta) => atleta.nome.length));
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
 
-      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(atleta.treinos).padStart(2)} treinos`;
+      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(atleta.treinos).padStart(1)}`;
 
+      // Define o emoji da medalha de acordo com a posição e adiciona ao final da linha
       if (index === 0) {
-        linha += " 🥇";
+        linha += ` ${progressoTexto} 🥇\n`;
       } else if (index === 1) {
-        linha += " 🥈";
+        linha += ` ${progressoTexto} 🥈\n`;
       } else if (index === 2) {
-        linha += " 🥉";
+        linha += ` ${progressoTexto} 🥉\n`;
+      } else {
+        linha += ` ${progressoTexto}\n`;
       }
 
-      linha = linha.padEnd(30) + progressoTexto + "\n";
       tabela += linha;
     });
 
@@ -230,11 +236,11 @@ client.on("ready", () => {
   console.log("QR code escaneado, Aplicação online");
 });
 
-client.on('message', async (msg) => {
-  if (msg.body.startsWith('!treino') && msg.from.endsWith('@g.us')) {
+client.on("message", async (msg) => {
+  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
     const nomeUsuario = await getNomeUsuario(msg.author);
-    const mensagemRetorno = await processarMensagem('!treino', nomeUsuario);
-    
+    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
+
     if (mensagemRetorno) {
       msg.reply(mensagemRetorno);
     } else {
