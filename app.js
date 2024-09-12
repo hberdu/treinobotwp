@@ -95,8 +95,7 @@ async function processarMensagem(mensagem, nomeUsuario) {
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, sexta, semanasRestantes } =
-        getSegundaEsextaDaSemanaAtual();
+      const { segunda, sexta, semanasRestantes } = getSegundaEsextaDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
 (${segunda.toLocaleDateString()} - ${sexta.toLocaleDateString()})
@@ -171,20 +170,34 @@ const gerarTabelaTreinos = async () => {
 
     snapshot.forEach((doc) => {
       const data = doc.data();
-      atletas.push({
-        nome: data.nome,
-        treinos: data.treinos,
-        progresso: data.progresso || 0,
-        meta: data.meta || 5,
-        progressoSemanal: data.progressoSemanal || 0,
-      });
+      if (data && data.nome) {
+        atletas.push({
+          nome: data.nome,
+          treinos: data.treinos || 0,
+          progresso: data.progresso || 0,
+          meta: data.meta || 5,
+          progressoSemanal: data.progressoSemanal || 0,
+        });
+      } else {
+        console.warn(`Dados incompletos para o documento: ${doc.id}`);
+      }
     });
+
+    if (atletas.length === 0) {
+      throw new Error("Nenhum atleta encontrado ou dados incompletos.");
+    }
 
     // Ordena os atletas pelo progresso semanal
     atletas.sort((a, b) => b.progressoSemanal - a.progressoSemanal);
 
     // Calcula o comprimento máximo de nome e treinos para formatação
-    const maxNomeLength = Math.max(...atletas.map((atleta) => atleta.nome.length));
+    const maxNomeLength = Math.max(...atletas.map((atleta) => {
+      if (!atleta.nome) {
+        console.error("Nome do atleta está indefinido:", atleta);
+        throw new Error("Nome do atleta está indefinido.");
+      }
+      return atleta.nome.length;
+    }));
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
@@ -211,6 +224,7 @@ const gerarTabelaTreinos = async () => {
     return "Erro ao gerar tabela de treinos.";
   }
 };
+
 async function getProgressoSemanal(nomeUsuario) {
   try {
     const atletaRef = doc(db, "atletas", nomeUsuario);
