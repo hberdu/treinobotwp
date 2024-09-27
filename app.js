@@ -18,6 +18,7 @@ const {
   setDoc,
   collection,
   getDocs,
+  addDoc,
 } = require("firebase/firestore");
 
 const firebaseConfig = {
@@ -44,13 +45,29 @@ client.on("qr", (qr) => {
   qrcodeTerminal.generate(qr, { small: true });
 });
 
+const insertNewTraining = async (athleteName) => {
+  try {
+    const res = await addDoc(collection(db, "data-treino"), {
+      nome: athleteName,
+      "data-treino": new Date(),
+    });
+  } catch (error) {
+    console.error("Erro ao inserir treino", error);
+    return "Erro ao inserir treino.";
+  }
+};
+
 async function inserirAtleta(nomeUsuario) {
   try {
     const atletaRef = doc(db, "atletas", nomeUsuario);
+
     const atletaDoc = await getDoc(atletaRef);
 
     if (atletaDoc.exists()) {
       const dadosAtleta = atletaDoc.data();
+
+      await insertNewTraining(dadosAtleta.nome);
+
       if (!dadosAtleta || typeof dadosAtleta.treinos === "undefined") {
         throw new Error("Dados do atleta estão incompletos ou inválidos.");
       }
@@ -62,9 +79,8 @@ async function inserirAtleta(nomeUsuario) {
 
       progresso += 1;
 
-      if (progresso >= meta) {
+      if (progresso === meta) {
         progressoSemanal += 1;
-        progresso = 0;
       }
 
       await updateDoc(atletaRef, {
@@ -83,6 +99,9 @@ async function inserirAtleta(nomeUsuario) {
         progressoSemanal: 0,
         meta: 5,
       });
+
+      await insertNewTraining(nomeUsuario);
+
       return `Atleta ${nomeUsuario}, seu primeiro treino foi gerado.`;
     }
   } catch (error) {
@@ -95,7 +114,8 @@ async function processarMensagem(mensagem, nomeUsuario) {
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, sexta, semanasRestantes } = getSegundaEsextaDaSemanaAtual();
+      const { segunda, sexta, semanasRestantes } =
+        getSegundaEsextaDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
 (${segunda.toLocaleDateString()} - ${sexta.toLocaleDateString()})
@@ -191,18 +211,22 @@ const gerarTabelaTreinos = async () => {
     atletas.sort((a, b) => b.progressoSemanal - a.progressoSemanal);
 
     // Calcula o comprimento máximo de nome e treinos para formatação
-    const maxNomeLength = Math.max(...atletas.map((atleta) => {
-      if (!atleta.nome) {
-        console.error("Nome do atleta está indefinido:", atleta);
-        throw new Error("Nome do atleta está indefinido.");
-      }
-      return atleta.nome.length;
-    }));
+    const maxNomeLength = Math.max(
+      ...atletas.map((atleta) => {
+        if (!atleta.nome) {
+          console.error("Nome do atleta está indefinido:", atleta);
+          throw new Error("Nome do atleta está indefinido.");
+        }
+        return atleta.nome.length;
+      })
+    );
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
 
-      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(atleta.treinos).padStart(1)}`;
+      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(
+        atleta.treinos
+      ).padStart(1)}`;
 
       // Define o emoji da medalha de acordo com a posição e adiciona ao final da linha
       if (index === 0) {
