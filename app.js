@@ -47,7 +47,7 @@ client.on("qr", (qr) => {
 
 const insertNewTraining = async (athleteName) => {
   try {
-    const res = await addDoc(collection(db, "data-treino"), {
+    const res = await addDoc(collection(db, "data-treino-homolog"), {
       nome: athleteName,
       "data-treino": new Date(),
     });
@@ -59,7 +59,7 @@ const insertNewTraining = async (athleteName) => {
 
 async function inserirAtleta(nomeUsuario) {
   try {
-    const atletaRef = doc(db, "atletas", nomeUsuario);
+    const atletaRef = doc(db, "atletas-homolog", nomeUsuario);
 
     const atletaDoc = await getDoc(atletaRef);
 
@@ -183,7 +183,7 @@ async function getNomeUsuario(numero) {
 const gerarTabelaTreinos = async () => {
   try {
     let tabela = "Tabela de Treinos:\n";
-    const atletasRef = collection(db, "atletas");
+    const atletasRef = collection(db, "atletas-homolog");
     const snapshot = await getDocs(atletasRef);
 
     const atletas = [];
@@ -251,7 +251,7 @@ const gerarTabelaTreinos = async () => {
 
 async function getProgressoSemanal(nomeUsuario) {
   try {
-    const atletaRef = doc(db, "atletas", nomeUsuario);
+    const atletaRef = doc(db, "atletas-homolog", nomeUsuario);
     const atletaDoc = await getDoc(atletaRef);
 
     if (atletaDoc.exists()) {
