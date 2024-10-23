@@ -7,7 +7,14 @@ const path = require("path");
 const app = express();
 const port = 3000;
 
-const client = new Client();
+
+const client = new Client({
+  puppeteer:{
+          executablePath: '/usr/bin/chromium-browser',
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+}
+});
+
 
 const { initializeApp } = require("firebase/app");
 const {
