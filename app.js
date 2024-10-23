@@ -287,7 +287,7 @@ client.on("message", async (msg) => {
     const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
 
     if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
+      //msg.reply(mensagemRetorno);
     } else {
       console.error("Mensagem de retorno vazia.");
       msg.reply("Erro ao gerar a mensagem de retorno.");
