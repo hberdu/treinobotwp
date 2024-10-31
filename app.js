@@ -47,12 +47,11 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {
-  qrcodeTerminal.generate(qr, function (qrcodeTerminal) {
-    console.log(qrcodeTerminal);
-  });
+  QRCode.toString(qr, { type: "terminal" }, (err, url) => {
+    if (err) console.error(err);
+    console.log(url);
 });
-
-
+});
 
 const insertNewTraining = async (athleteName) => {
   try {
