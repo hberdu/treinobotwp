@@ -7,7 +7,13 @@ const path = require("path");
 const app = express();
 const port = 3000;
 
-const client = new Client();
+const client = new Client({
+  session: sessionData,
+  puppeteer: {
+      headless: true,
+      args: ['--no-sandbox']
+  }
+});
 
 const { initializeApp } = require("firebase/app");
 const {
