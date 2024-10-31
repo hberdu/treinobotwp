@@ -8,7 +8,6 @@ const app = express();
 const port = 3000;
 
 const client = new Client({
-  session: sessionData,
   puppeteer: {
       headless: true,
       args: ['--no-sandbox']
