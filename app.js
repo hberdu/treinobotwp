@@ -1,6 +1,6 @@
 const express = require("express");
 const { Client } = require("whatsapp-web.js");
-const qrcode = require("qrcode");
+const QRCode = require("qrcode");
 const qrcodeTerminal = require("qrcode-terminal");
 const fs = require("fs");
 const path = require("path");
@@ -47,10 +47,14 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {
-  qrcode.toString(qr, { type: "terminal" }, (err, url) => {
-    if (err) console.error(err);
-    console.log(url);
-});
+  QRCode.toDataURL(qr, (err, base64Image) => {
+    if (err) {
+      console.error("Erro ao gerar QR code:", err);
+      return;
+    }
+    console.log("QR Code (base64):", base64Image);
+    console.log("Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64.");
+  });
 });
 
 const insertNewTraining = async (athleteName) => {
