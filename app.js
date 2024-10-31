@@ -46,8 +46,8 @@ app.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
 
-client.on("qr", (qr) => {
-  qrcodeTerminal.generate(qr, { small: true });
+client.on("qr", (qr) => {  
+  console.log(qrcodeTerminal.generate(qr, { small: true }));
 });
 
 const insertNewTraining = async (athleteName) => {
