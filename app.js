@@ -47,7 +47,9 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {  
-  console.log(qrcodeTerminal.generate(qr, { small: true }));
+  qrcodeTerminal.generate(qr, { small: true }, function (qrcode) {
+  console.log(qrcode);
+});
 });
 
 const insertNewTraining = async (athleteName) => {
