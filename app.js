@@ -47,8 +47,8 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {
-  qrcode.generate(qr, function (qrcode) {
-    console.log(qrcode);
+  qrcodeTerminal.generate(qr, function (qrcodeTerminal) {
+    console.log(qrcodeTerminal);
   });
 });
 
