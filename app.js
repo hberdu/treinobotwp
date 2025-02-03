@@ -223,6 +223,7 @@ async function getNomeUsuario(numero) {
 }
 
 const gerarTabelaTreinos = async () => {
+  const semanasNoAno = 52;
   try {
     let tabela = "Tabela de Treinos:\n";
     const atletasRef = collection(db, "atletas");
@@ -300,6 +301,7 @@ const gerarTabelaTreinos = async () => {
 };
 
 async function getProgressoSemanal(nomeUsuario) {
+  const semanasNoAno = 52;
   try {
     const atletaRef = doc(db, "atletas", nomeUsuario);
     const atletaDoc = await getDoc(atletaRef);
