@@ -205,8 +205,11 @@ function getSegundaEDomingoDaSemanaAtual() {
   segunda.setDate(dataAtual.getDate() + diffSegunda);
   const domingo = new Date(dataAtual.getTime());
   domingo.setDate(dataAtual.getDate() + diffDomingo);
- 
-  return { segunda, domingo };
+
+  const segundaFormatada = segunda.toLocaleDateString();
+  const domingoFormatado = domingo.toLocaleDateString();
+
+  return { segunda: segundaFormatada, domingo: domingoFormatado };
 }
 
 async function getNomeUsuario(numero) {
@@ -254,6 +257,7 @@ const gerarTabelaTreinos = async () => {
           return b.treinos - a.treinos;
       }
     });
+    console.log(atletas);
 
     // Calcula o comprimento máximo de nome e treinos para formatação
     const maxNomeLength = Math.max(
@@ -265,6 +269,7 @@ const gerarTabelaTreinos = async () => {
         return atleta.nome.length;
       })
     );
+    console.log(maxNomeLength)
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
