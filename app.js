@@ -246,15 +246,13 @@ const gerarTabelaTreinos = async () => {
       throw new Error("Nenhum atleta encontrado ou dados incompletos.");
     }
 
-    // Ordena os atletas pelo número de semanas completas, número total de treinos e progresso semanal
+    // Ordena os atletas pelo progresso semanal e depois pela quantidade de treinos
     atletas.sort((a, b) => {
       if (b.progressoSemanal !== a.progressoSemanal) {
-        return b.progressoSemanal - a.progressoSemanal;
+          return b.progressoSemanal - a.progressoSemanal;
+      } else {
+          return b.treinos - a.treinos;
       }
-      if (b.treinos !== a.treinos) {
-        return b.treinos - a.treinos;
-      }
-      return b.progresso - a.progresso;
     });
 
     // Calcula o comprimento máximo de nome e treinos para formatação
