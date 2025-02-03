@@ -73,7 +73,7 @@ const insertNewTraining = async (athleteName) => {
 
 async function inserirAtleta(nomeUsuario) {
   try {
-    const atletaRef = doc(db, "atletas", nomeUsuario);
+    const atletaRef = doc(db, "atletas2025", nomeUsuario);
 
     const atletaDoc = await getDoc(atletaRef);
 
