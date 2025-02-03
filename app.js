@@ -127,14 +127,15 @@ async function inserirAtleta(nomeUsuario) {
 async function processarMensagem(mensagem, nomeUsuario) {
   const semanaAtual = getSemanaAtual();
   const semanasNoAno = 52;
+  const semanasRestantes = semanasNoAno - semanaAtual;
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, sexta, semanasRestantes } =
-        getSegundaEsextaDaSemanaAtual();
+      const { segunda, domingo } =
+        getSegundaEDomingoDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
-(${segunda.toLocaleDateString()} - ${sexta.toLocaleDateString()})
+(${segunda.toLocaleDateString()} - ${domingo.toLocaleDateString()})
 ${semanasRestantes} semanas restantes no ano
       `;
 
@@ -158,9 +159,12 @@ ${tabelaTreinos}
 }
 
 async function processarMensagemSemAtualizar(mensagem, nomeUsuario) {
+  const semanaAtual = getSemanaAtual();
+  const semanasNoAno = 52;
+  const semanasRestantes = semanasNoAno - semanaAtual;
   if (mensagem === "!status") {
     try {
-      const { segunda, domingo, semanasRestantes } =
+      const { segunda, domingo } =
         getSegundaEDomingoDaSemanaAtual();
       const texto = `
         Projeto semana ${semanaAtual}/${semanasNoAno} 
@@ -192,8 +196,6 @@ function getSemanaAtual() {
 }
 
 function getSegundaEDomingoDaSemanaAtual() {
-  const semanaAtual = getSemanaAtual();
-  const semanasNoAno = 52;
   const dataAtual = new Date();
   const diaSemana = dataAtual.getDay();
   const diffSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
@@ -203,9 +205,8 @@ function getSegundaEDomingoDaSemanaAtual() {
   segunda.setDate(dataAtual.getDate() + diffSegunda);
   const domingo = new Date(dataAtual.getTime());
   domingo.setDate(dataAtual.getDate() + diffDomingo);
-  const semanasRestantes = semanasNoAno - semanaAtual;
-
-  return { segunda, domingo, semanasRestantes };
+ 
+  return { segunda, domingo };
 }
 
 async function getNomeUsuario(numero) {
