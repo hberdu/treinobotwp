@@ -9,9 +9,9 @@ const port = 3000;
 
 const client = new Client({
   puppeteer: {
-      headless: true,
-      args: ['--no-sandbox']
-  }
+    headless: true,
+    args: ["--no-sandbox"],
+  },
 });
 
 const { initializeApp } = require("firebase/app");
@@ -53,7 +53,9 @@ client.on("qr", (qr) => {
       return;
     }
     console.log("QR Code (base64):", base64Image);
-    console.log("Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64.");
+    console.log(
+      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
+    );
   });
 });
 
@@ -123,6 +125,8 @@ async function inserirAtleta(nomeUsuario) {
 }
 
 async function processarMensagem(mensagem, nomeUsuario) {
+  const semanaAtual = getSemanaAtual();
+  const semanasNoAno = 52;
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
@@ -153,6 +157,31 @@ ${tabelaTreinos}
   }
 }
 
+async function processarMensagemSemAtualizar(mensagem, nomeUsuario) {
+  if (mensagem === "!status") {
+    try {
+      const { segunda, domingo, semanasRestantes } =
+        getSegundaEDomingoDaSemanaAtual();
+      const texto = `
+        Projeto semana ${semanaAtual}/${semanasNoAno} 
+        (${segunda.toLocaleDateString()} - ${domingo.toLocaleDateString()})
+        ${semanasRestantes} semanas restantes no ano
+        `;
+
+      const tabelaTreinos = await gerarTabelaTreinos();
+      const mensagemFinal = `\`\`\`
+      ${texto}
+      ${tabelaTreinos}
+      \`\`\``;
+      console.log("Mensagem final:\n", mensagemFinal);
+      return mensagemFinal;
+    } catch (error) {
+      console.error("Erro ao processar a mensagem:", error);
+      return "Ocorreu um erro ao processar sua solicitação.";
+    }
+  }
+}
+
 function getSemanaAtual() {
   const hoje = new Date();
   const inicioDoAno = new Date(hoje.getFullYear(), 0, 1);
@@ -162,24 +191,21 @@ function getSemanaAtual() {
   return semana;
 }
 
-const semanaAtual = getSemanaAtual();
-const semanasNoAno = 52;
-
-function getSegundaEsextaDaSemanaAtual() {
+function getSegundaEDomingoDaSemanaAtual() {
+  const semanaAtual = getSemanaAtual();
+  const semanasNoAno = 52;
   const dataAtual = new Date();
   const diaSemana = dataAtual.getDay();
   const diffSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
-  const diffSexta = diaSemana === 0 ? 5 : 5 - diaSemana;
+  const diffDomingo = diaSemana === 0 ? 0 : 7 - diaSemana;
 
   const segunda = new Date(dataAtual.getTime());
   segunda.setDate(dataAtual.getDate() + diffSegunda);
-
-  const sexta = new Date(dataAtual.getTime());
-  sexta.setDate(dataAtual.getDate() + diffSexta);
-
+  const domingo = new Date(dataAtual.getTime());
+  domingo.setDate(dataAtual.getDate() + diffDomingo);
   const semanasRestantes = semanasNoAno - semanaAtual;
 
-  return { segunda, sexta, semanasRestantes };
+  return { segunda, domingo, semanasRestantes };
 }
 
 async function getNomeUsuario(numero) {
@@ -298,6 +324,19 @@ client.on("message", async (msg) => {
   if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
     const nomeUsuario = await getNomeUsuario(msg.author);
     const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
+
+    if (mensagemRetorno) {
+      msg.reply(mensagemRetorno);
+    } else {
+      console.error("Mensagem de retorno vazia.");
+      msg.reply("Erro ao gerar a mensagem de retorno.");
+    }
+  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    const mensagemRetorno = await processarMensagemSemAtualizar(
+      "!status",
+      nomeUsuario
+    );
 
     if (mensagemRetorno) {
       msg.reply(mensagemRetorno);
