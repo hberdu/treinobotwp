@@ -135,7 +135,7 @@ async function processarMensagem(mensagem, nomeUsuario) {
         getSegundaEDomingoDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
-(${segunda.toLocaleDateString()} - ${domingo.toLocaleDateString()})
+(${segunda.toLocaleDateString('pt-br')} - ${domingo.toLocaleDateString('pt-br')})
 ${semanasRestantes} semanas restantes no ano
       `;
 
@@ -206,10 +206,7 @@ function getSegundaEDomingoDaSemanaAtual() {
   const domingo = new Date(dataAtual.getTime());
   domingo.setDate(dataAtual.getDate() + diffDomingo);
 
-  const segundaFormatada = segunda.toLocaleDateString();
-  const domingoFormatado = domingo.toLocaleDateString();
-
-  return { segunda: segundaFormatada, domingo: domingoFormatado };
+  return { segunda, domingo };
 }
 
 async function getNomeUsuario(numero) {
