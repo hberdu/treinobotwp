@@ -264,6 +264,7 @@ const gerarTabelaTreinos = async () => {
         return atleta.nome.length;
       })
     );
+    console.log(maxNomeLength);
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
