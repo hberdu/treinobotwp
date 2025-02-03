@@ -131,18 +131,15 @@ async function processarMensagem(mensagem, nomeUsuario) {
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, domingo } =
-        getSegundaEDomingoDaSemanaAtual();
+      const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
-(${segunda.toLocaleDateString('pt-br')} - ${domingo.toLocaleDateString('pt-br')})
+(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString(
+        "pt-br"
+      )})
 ${semanasRestantes} semanas restantes no ano
       `;
-
-      const progressoSemanal = await getProgressoSemanal(nomeUsuario);
       const tabelaTreinos = await gerarTabelaTreinos();
-
-      // Formatar mensagem com crases para texto monoespaçado
       const mensagemFinal = `\`\`\`
 ${mensagemAtleta}
 ${texto}
@@ -164,13 +161,14 @@ async function processarMensagemSemAtualizar(mensagem, nomeUsuario) {
   const semanasRestantes = semanasNoAno - semanaAtual;
   if (mensagem === "!status") {
     try {
-      const { segunda, domingo } =
-        getSegundaEDomingoDaSemanaAtual();
+      const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
       const texto = `
-        Projeto semana ${semanaAtual}/${semanasNoAno} 
-        (${segunda.toLocaleDateString()} - ${domingo.toLocaleDateString()})
-        ${semanasRestantes} semanas restantes no ano
-        `;
+Projeto semana ${semanaAtual}/${semanasNoAno} 
+(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString(
+        "pt-br"
+      )})
+${semanasRestantes} semanas restantes no ano
+`;
 
       const tabelaTreinos = await gerarTabelaTreinos();
       const mensagemFinal = `\`\`\`
@@ -223,7 +221,7 @@ const gerarTabelaTreinos = async () => {
   const semanasNoAno = 52;
   try {
     let tabela = "Tabela de Treinos:\n";
-    const atletasRef = collection(db, "atletas");
+    const atletasRef = collection(db, "atletas2025");
     const snapshot = await getDocs(atletasRef);
 
     const atletas = [];
@@ -250,9 +248,9 @@ const gerarTabelaTreinos = async () => {
     // Ordena os atletas pelo progresso semanal e depois pela quantidade de treinos
     atletas.sort((a, b) => {
       if (b.progressoSemanal !== a.progressoSemanal) {
-          return b.progressoSemanal - a.progressoSemanal;
+        return b.progressoSemanal - a.progressoSemanal;
       } else {
-          return b.treinos - a.treinos;
+        return b.treinos - a.treinos;
       }
     });
     console.log(atletas);
@@ -267,7 +265,7 @@ const gerarTabelaTreinos = async () => {
         return atleta.nome.length;
       })
     );
-    console.log(maxNomeLength)
+    console.log(maxNomeLength);
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
@@ -296,28 +294,6 @@ const gerarTabelaTreinos = async () => {
     return "Erro ao gerar tabela de treinos.";
   }
 };
-
-async function getProgressoSemanal(nomeUsuario) {
-  const semanasNoAno = 52;
-  try {
-    const atletaRef = doc(db, "atletas", nomeUsuario);
-    const atletaDoc = await getDoc(atletaRef);
-
-    if (atletaDoc.exists()) {
-      const dadosAtleta = atletaDoc.data();
-      const progressoSemanal = dadosAtleta.progressoSemanal || 0;
-      const progresso = dadosAtleta.progresso || 0;
-      const meta = dadosAtleta.meta || 5;
-
-      return `${progresso}/${meta} - Progresso Semanal: ${progressoSemanal}/${semanasNoAno}`;
-    } else {
-      return "Atleta não encontrado";
-    }
-  } catch (error) {
-    console.error("Erro ao obter progresso semanal:", error);
-    return "Erro ao obter progresso semanal.";
-  }
-}
 
 client.on("ready", () => {
   console.log("QR code escaneado, Aplicação online");
