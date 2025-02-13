@@ -9,9 +9,9 @@ const port = 3000;
 
 const client = new Client({
   puppeteer: {
-      headless: true,
-      args: ['--no-sandbox']
-  }
+    headless: true,
+    args: ["--no-sandbox"],
+  },
 });
 
 const { initializeApp } = require("firebase/app");
@@ -53,7 +53,9 @@ client.on("qr", (qr) => {
       return;
     }
     console.log("QR Code (base64):", base64Image);
-    console.log("Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64.");
+    console.log(
+      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
+    );
   });
 });
 
@@ -71,7 +73,7 @@ const insertNewTraining = async (athleteName) => {
 
 async function inserirAtleta(nomeUsuario) {
   try {
-    const atletaRef = doc(db, "atletas", nomeUsuario);
+    const atletaRef = doc(db, "atletas2025", nomeUsuario);
 
     const atletaDoc = await getDoc(atletaRef);
 
@@ -123,27 +125,56 @@ async function inserirAtleta(nomeUsuario) {
 }
 
 async function processarMensagem(mensagem, nomeUsuario) {
+  const semanaAtual = getSemanaAtual();
+  const semanasNoAno = 52;
+  const semanasRestantes = semanasNoAno - semanaAtual;
   if (mensagem === "!treino") {
     try {
       const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, sexta, semanasRestantes } =
-        getSegundaEsextaDaSemanaAtual();
+      const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
       const texto = `
 Projeto semana ${semanaAtual}/${semanasNoAno} 
-(${segunda.toLocaleDateString()} - ${sexta.toLocaleDateString()})
+(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString(
+        "pt-br"
+      )})
 ${semanasRestantes} semanas restantes no ano
       `;
-
-      const progressoSemanal = await getProgressoSemanal(nomeUsuario);
       const tabelaTreinos = await gerarTabelaTreinos();
-
-      // Formatar mensagem com crases para texto monoespaçado
       const mensagemFinal = `\`\`\`
 ${mensagemAtleta}
 ${texto}
 ${tabelaTreinos}
 \`\`\``;
 
+      console.log("Mensagem final:\n", mensagemFinal);
+      return mensagemFinal;
+    } catch (error) {
+      console.error("Erro ao processar a mensagem:", error);
+      return "Ocorreu um erro ao processar sua solicitação.";
+    }
+  }
+}
+
+async function processarMensagemSemAtualizar(mensagem, nomeUsuario) {
+  const semanaAtual = getSemanaAtual();
+  const semanasNoAno = 52;
+  const semanasRestantes = semanasNoAno - semanaAtual;
+  if (mensagem === "!status") {
+    try {
+      const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
+      const texto = `
+Projeto semana ${semanaAtual}/${semanasNoAno} 
+(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString(
+        "pt-br"
+      )})
+${semanasRestantes} semanas restantes no ano
+`;
+
+      const tabelaTreinos = await gerarTabelaTreinos();
+      const mensagemFinal = `\`\`\`
+      ${texto}
+      ${tabelaTreinos}
+      \`\`\``;
       console.log("Mensagem final:\n", mensagemFinal);
       return mensagemFinal;
     } catch (error) {
@@ -162,24 +193,18 @@ function getSemanaAtual() {
   return semana;
 }
 
-const semanaAtual = getSemanaAtual();
-const semanasNoAno = 52;
-
-function getSegundaEsextaDaSemanaAtual() {
+function getSegundaEDomingoDaSemanaAtual() {
   const dataAtual = new Date();
   const diaSemana = dataAtual.getDay();
   const diffSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
-  const diffSexta = diaSemana === 0 ? 5 : 5 - diaSemana;
+  const diffDomingo = diaSemana === 0 ? 0 : 7 - diaSemana;
 
   const segunda = new Date(dataAtual.getTime());
   segunda.setDate(dataAtual.getDate() + diffSegunda);
+  const domingo = new Date(dataAtual.getTime());
+  domingo.setDate(dataAtual.getDate() + diffDomingo);
 
-  const sexta = new Date(dataAtual.getTime());
-  sexta.setDate(dataAtual.getDate() + diffSexta);
-
-  const semanasRestantes = semanasNoAno - semanaAtual;
-
-  return { segunda, sexta, semanasRestantes };
+  return { segunda, domingo };
 }
 
 async function getNomeUsuario(numero) {
@@ -193,9 +218,10 @@ async function getNomeUsuario(numero) {
 }
 
 const gerarTabelaTreinos = async () => {
+  const semanasNoAno = 52;
   try {
     let tabela = "Tabela de Treinos:\n";
-    const atletasRef = collection(db, "atletas");
+    const atletasRef = collection(db, "atletas2025");
     const snapshot = await getDocs(atletasRef);
 
     const atletas = [];
@@ -219,8 +245,14 @@ const gerarTabelaTreinos = async () => {
       throw new Error("Nenhum atleta encontrado ou dados incompletos.");
     }
 
-    // Ordena os atletas pelo progresso semanal
-    atletas.sort((a, b) => b.progressoSemanal - a.progressoSemanal);
+    // Ordena os atletas pelo progresso semanal e depois pela quantidade de treinos
+    atletas.sort((a, b) => {
+      if (b.progressoSemanal !== a.progressoSemanal) {
+        return b.progressoSemanal - a.progressoSemanal;
+      } else {
+        return b.treinos - a.treinos;
+      }
+    });
 
     // Calcula o comprimento máximo de nome e treinos para formatação
     const maxNomeLength = Math.max(
@@ -232,6 +264,7 @@ const gerarTabelaTreinos = async () => {
         return atleta.nome.length;
       })
     );
+    console.log(maxNomeLength);
 
     atletas.forEach((atleta, index) => {
       const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
@@ -261,27 +294,6 @@ const gerarTabelaTreinos = async () => {
   }
 };
 
-async function getProgressoSemanal(nomeUsuario) {
-  try {
-    const atletaRef = doc(db, "atletas", nomeUsuario);
-    const atletaDoc = await getDoc(atletaRef);
-
-    if (atletaDoc.exists()) {
-      const dadosAtleta = atletaDoc.data();
-      const progressoSemanal = dadosAtleta.progressoSemanal || 0;
-      const progresso = dadosAtleta.progresso || 0;
-      const meta = dadosAtleta.meta || 5;
-
-      return `${progresso}/${meta} - Progresso Semanal: ${progressoSemanal}/${semanasNoAno}`;
-    } else {
-      return "Atleta não encontrado";
-    }
-  } catch (error) {
-    console.error("Erro ao obter progresso semanal:", error);
-    return "Erro ao obter progresso semanal.";
-  }
-}
-
 client.on("ready", () => {
   console.log("QR code escaneado, Aplicação online");
 });
@@ -290,6 +302,19 @@ client.on("message", async (msg) => {
   if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
     const nomeUsuario = await getNomeUsuario(msg.author);
     const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
+
+    if (mensagemRetorno) {
+      msg.reply(mensagemRetorno);
+    } else {
+      console.error("Mensagem de retorno vazia.");
+      msg.reply("Erro ao gerar a mensagem de retorno.");
+    }
+  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    const mensagemRetorno = await processarMensagemSemAtualizar(
+      "!status",
+      nomeUsuario
+    );
 
     if (mensagemRetorno) {
       msg.reply(mensagemRetorno);
