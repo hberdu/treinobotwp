@@ -1,5 +1,5 @@
 const express = require("express");
-const { Client } = require("whatsapp-web.js");
+const { Client, LocalAuth} = require("whatsapp-web.js");
 const QRCode = require("qrcode");
 const qrcodeTerminal = require("qrcode-terminal");
 const fs = require("fs");
@@ -12,6 +12,14 @@ const client = new Client({
     headless: true,
     args: ["--no-sandbox"],
   },
+  authStrategy: new LocalAuth(),
+  webVersionCache: {
+    type: "remote",
+    remotePath:
+      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2411.2.html",
+  },
+  authTimeoutMs: 60000, // Optional: timeout for authentication in milliseconds
+  qrTimeout: 30000, // Optional: timeout for QR code generation
 });
 
 const { initializeApp } = require("firebase/app");
