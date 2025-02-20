@@ -7,15 +7,19 @@ const path = require("path");
 const app = express();
 const port = 3000;
 
-client = new Client({
-  authStrategy: new LocalAuth(),
+const client = new Client({
   puppeteer: {
-      headless: true,
-      args: [ '--no-sandbox', '--disable-gpu', ],
+    headless: true,
+    args: ["--no-sandbox", "--disable-gpu"],
   },
-  webVersionCache: { type: 'remote', remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html', },
+  authStrategy: new LocalAuth(),
+  webVersionCache: {
+    type: "remote",
+    remotePath:
+      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2411.2.html",
+  },
   authTimeoutMs: 60000, // Optional: timeout for authentication in milliseconds
-  qrTimeout: 300000, // Optional: timeout for QR code generation
+  qrTimeout: 30000, // Optional: timeout for QR code generation
 });
 
 const { initializeApp } = require("firebase/app");
