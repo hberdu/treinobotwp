@@ -7,18 +7,14 @@ const path = require("path");
 const app = express();
 const port = 3000;
 
-const client = new Client({
-  puppeteer: {
-    headless: true,
-    args: ["--no-sandbox"],
-  },
+client = new Client({
   authStrategy: new LocalAuth(),
-  webVersionCache: {
-    type: "remote",
-    remotePath:
-      "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2411.2.html",
+  puppeteer: {
+      headless: true,
+      args: [ '--no-sandbox', '--disable-gpu', ],
   },
-  authTimeoutMs: 600000, // Optional: timeout for authentication in milliseconds
+  webVersionCache: { type: 'remote', remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html', },
+  authTimeoutMs: 60000, // Optional: timeout for authentication in milliseconds
   qrTimeout: 300000, // Optional: timeout for QR code generation
 });
 
