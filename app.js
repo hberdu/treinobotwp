@@ -18,8 +18,8 @@ const client = new Client({
     remotePath:
       "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2411.2.html",
   },
-  authTimeoutMs: 60000, // Optional: timeout for authentication in milliseconds
-  qrTimeout: 30000, // Optional: timeout for QR code generation
+  authTimeoutMs: 300000, // Optional: timeout for authentication in milliseconds
+  qrTimeout: 300000, // Optional: timeout for QR code generation
 });
 
 const { initializeApp } = require("firebase/app");
