@@ -55,16 +55,7 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {
-  QRCode.toDataURL(qr, (err, base64Image) => {
-    if (err) {
-      console.error("Erro ao gerar QR code:", err);
-      return;
-    }
-    console.log("QR Code (base64):", base64Image);
-    console.log(
-      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
-    );
-  });
+    console.log("QR Code:", qr);
 });
 
 const insertNewTraining = async (athleteName) => {
