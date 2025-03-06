@@ -361,3 +361,11 @@ client.on("auth_failure", (msg) => {
 client.on("disconnected", (reason) => {
   console.log("Cliente desconectado", reason);
 });
+
+client.on("loading_screen", (percent, message) => {
+  console.log(`Carregando: ${percent}% - ${message}`);
+});
+
+client.on("change_state", (state) => {
+  console.log(`Estado do cliente alterado para: ${state}`);
+});
