@@ -9,7 +9,7 @@ const port = 3000;
 
 const client = new Client({
   puppeteer: {
-    headless: true,
+    headless: false,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   },
   authStrategy: new LocalAuth(),
@@ -55,7 +55,16 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {
-    console.log("QR Code:", qr);
+  QRCode.toDataURL(qr, (err, base64Image) => {
+    if (err) {
+      console.error("Erro ao gerar QR code:", err);
+      return;
+    }
+    console.log("QR Code (base64):", base64Image);
+    console.log(
+      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
+    );
+  });
 });
 
 const insertNewTraining = async (athleteName) => {
