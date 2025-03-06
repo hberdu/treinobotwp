@@ -47,7 +47,7 @@ console.log("Inicializando cliente...");
 client.initialize();
 console.log("Cliente inicializado.");
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
