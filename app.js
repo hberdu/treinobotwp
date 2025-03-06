@@ -68,6 +68,22 @@ client.on("qr", (qr) => {
   });
 });
 
+client.on("ready", () => {
+  console.log("QR code escaneado, Aplicação online");
+});
+
+client.on("authenticated", () => {
+  console.log("Cliente autenticado com sucesso");
+});
+
+client.on("auth_failure", (msg) => {
+  console.error("Falha na autenticação", msg);
+});
+
+client.on("disconnected", (reason) => {
+  console.log("Cliente desconectado", reason);
+});
+
 const insertNewTraining = async (athleteName) => {
   try {
     const res = await addDoc(collection(db, "data-treino"), {
@@ -332,4 +348,16 @@ client.on("message", async (msg) => {
       msg.reply("Erro ao gerar a mensagem de retorno.");
     }
   }
+});
+
+client.on("authenticated", () => {
+  console.log("Cliente autenticado com sucesso");
+});
+
+client.on("auth_failure", (msg) => {
+  console.error("Falha na autenticação", msg);
+});
+
+client.on("disconnected", (reason) => {
+  console.log("Cliente desconectado", reason);
 });
