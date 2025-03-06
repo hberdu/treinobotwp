@@ -55,6 +55,7 @@ app.listen(PORT, () => {
 });
 
 client.on("qr", (qr) => {
+  console.log("QR code recebido, gerando base64...");
   QRCode.toDataURL(qr, (err, base64Image) => {
     if (err) {
       console.error("Erro ao gerar QR code:", err);
