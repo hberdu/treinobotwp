@@ -9,8 +9,8 @@ const port = 3000;
 
 const client = new Client({
   puppeteer: {
-    headless: false,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true,
+    args: ["--no-sandbox", "--disable-gpu"],
   },
   authStrategy: new LocalAuth(),
   webVersionCache: {
