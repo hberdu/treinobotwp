@@ -47,7 +47,10 @@ const firebaseConfig = {
 const appFirebase = initializeApp(firebaseConfig);
 const db = getFirestore();
 
+// Adicionando logs para inicialização do cliente
+console.log("Inicializando cliente...");
 client.initialize();
+console.log("Cliente inicializado.");
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
