@@ -367,3 +367,4 @@ client.on("loading_screen", (percent, message) => {
 client.on("change_state", (state) => {
   console.log(`Estado do cliente alterado para: ${state}`);
 });
+//teste
