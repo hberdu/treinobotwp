@@ -96,7 +96,7 @@ const insertNewTraining = async (athleteName) => {
 
 async function inserirAtleta(nomeUsuario) {
   try {
-    const atletaRef = doc(db, "atletas2025", nomeUsuario);
+    const atletaRef = doc(db, "atletas2026", nomeUsuario);
 
     const atletaDoc = await getDoc(atletaRef);
 
@@ -367,4 +367,3 @@ client.on("loading_screen", (percent, message) => {
 client.on("change_state", (state) => {
   console.log(`Estado do cliente alterado para: ${state}`);
 });
-//teste
