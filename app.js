@@ -12,7 +12,7 @@ const client = new Client({
     headless: true,
     args: ["--no-sandbox", "--disable-gpu"],
   },
-  authStrategy: new NoAuth (),
+  authStrategy: new NoAuth(),
   authTimeoutMs: 300000, // Optional: timeout for authentication in milliseconds
   qrTimeout: 300000, // Optional: timeout for QR code generation
 });
@@ -286,6 +286,33 @@ const gerarTabelaTreinos = async () => {
     return "Erro ao gerar tabela de treinos.";
   }
 };
+
+client.on("message", async (msg) => {
+  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
+
+    if (mensagemRetorno) {
+      msg.reply(mensagemRetorno);
+    } else {
+      console.error("Mensagem de retorno vazia.");
+      msg.reply("Erro ao gerar a mensagem de retorno.");
+    }
+  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    const mensagemRetorno = await processarMensagemSemAtualizar(
+      "!status",
+      nomeUsuario
+    );
+
+    if (mensagemRetorno) {
+      msg.reply(mensagemRetorno);
+    } else {
+      console.error("Mensagem de retorno vazia.");
+      msg.reply("Erro ao gerar a mensagem de retorno.");
+    }
+  }
+});
 
 client.on("qr", (qr) => {
   console.log("QR code recebido, gerando base64...");
