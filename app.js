@@ -52,36 +52,6 @@ app.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
 
-client.on("qr", (qr) => {
-  console.log("QR code recebido, gerando base64...");
-  QRCode.toDataURL(qr, (err, base64Image) => {
-    if (err) {
-      console.error("Erro ao gerar QR code:", err);
-      return;
-    }
-    console.log("QR Code (base64):", base64Image);
-    console.log(
-      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
-    );
-  });
-});
-
-client.on("ready", () => {
-  console.log("QR code escaneado, Aplicação online");
-});
-
-client.on("authenticated", () => {
-  console.log("Cliente autenticado com sucesso");
-});
-
-client.on("auth_failure", (msg) => {
-  console.error("Falha na autenticação", msg);
-});
-
-client.on("disconnected", (reason) => {
-  console.log("Cliente desconectado", reason);
-});
-
 const insertNewTraining = async (athleteName) => {
   try {
     const res = await addDoc(collection(db, "data-treino"), {
@@ -317,35 +287,22 @@ const gerarTabelaTreinos = async () => {
   }
 };
 
-client.on("ready", () => {
-  console.log("QR code escaneado, Aplicação online");
+client.on("qr", (qr) => {
+  console.log("QR code recebido, gerando base64...");
+  QRCode.toDataURL(qr, (err, base64Image) => {
+    if (err) {
+      console.error("Erro ao gerar QR code:", err);
+      return;
+    }
+    console.log("QR Code (base64):", base64Image);
+    console.log(
+      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
+    );
+  });
 });
 
-client.on("message", async (msg) => {
-  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
-
-    if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
-    } else {
-      console.error("Mensagem de retorno vazia.");
-      msg.reply("Erro ao gerar a mensagem de retorno.");
-    }
-  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    const mensagemRetorno = await processarMensagemSemAtualizar(
-      "!status",
-      nomeUsuario
-    );
-
-    if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
-    } else {
-      console.error("Mensagem de retorno vazia.");
-      msg.reply("Erro ao gerar a mensagem de retorno.");
-    }
-  }
+client.on("ready", () => {
+  console.log("QR code escaneado, Aplicação online");
 });
 
 client.on("authenticated", () => {
@@ -358,12 +315,4 @@ client.on("auth_failure", (msg) => {
 
 client.on("disconnected", (reason) => {
   console.log("Cliente desconectado", reason);
-});
-
-client.on("loading_screen", (percent, message) => {
-  console.log(`Carregando: ${percent}% - ${message}`);
-});
-
-client.on("change_state", (state) => {
-  console.log(`Estado do cliente alterado para: ${state}`);
 });
