@@ -244,7 +244,7 @@ const gerarTabelaTreinos = async () => {
   const semanasNoAno = 52;
   try {
     let tabela = "Tabela de Treinos:\n";
-    const atletasRef = collection(db, "atletas2025");
+    const atletasRef = collection(db, "atletas2026");
     const snapshot = await getDocs(atletasRef);
 
     const atletas = [];
