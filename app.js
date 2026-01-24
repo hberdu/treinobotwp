@@ -1,5 +1,5 @@
 const express = require("express");
-const { Client, NoAuth } = require("whatsapp-web.js");
+const { Client, LocalAuth } = require("whatsapp-web.js");
 const QRCode = require("qrcode");
 const qrcodeTerminal = require("qrcode-terminal");
 const fs = require("fs");
@@ -10,13 +10,15 @@ const port = 3000;
 
 
 const client = new Client({
+  authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
     args: ["--no-sandbox", "--disable-gpu"],
   },
-  authStrategy: new NoAuth(),
-  authTimeoutMs: 300000,
-  qrTimeout: 300000,
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wwebjs/wa-web-cache/master/data/'
+  }
 });
 
 const { initializeApp } = require("firebase/app");
@@ -44,18 +46,164 @@ const firebaseConfig = {
 const appFirebase = initializeApp(firebaseConfig);
 const db = getFirestore();
 
-const OPENAI_API_KEY = "sk-...jXsA";
+// Usar variável de ambiente para a chave de API
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+if (!OPENAI_API_KEY) {
+  console.error("[ERRO] OPENAI_API_KEY não configurada! Configure a variável de ambiente.");
+  process.exit(1);
+}
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-// Adicionando logs para inicialização do cliente
+// Flag para garantir que não criamos múltiplos intervalos
+let readyCheckStarted = false;
+
+// ============================================
+// REGISTRAR TODOS OS LISTENERS ANTES DE INICIALIZAR
+// ============================================
+
+client.on("loading_screen", (percent, message) => {
+  console.log(`[Cliente] Carregando: ${percent}% - ${message}`);
+});
+
+client.on("qr", (qr) => {
+  console.log("\n[Eventos] ⏳ QR CODE - Escaneie com seu WhatsApp:\n");
+  qrcodeTerminal.generate(qr, { small: true });
+  console.log("\n[Eventos] QR Code gerado acima. Aguardando escaneamento...\n");
+});
+
+client.on("authenticated", () => {
+  console.log("[Eventos] ✓ Autenticado com sucesso! Sessão salva em .wwebjs_auth");
+  
+  // Verificar apenas uma vez se client.info fica disponível
+  if (readyCheckStarted) return;
+  readyCheckStarted = true;
+  
+  let checkAttempts = 0;
+  const checkReadyInterval = setInterval(() => {
+    checkAttempts++;
+    console.log(`[Verificação] Tentativa ${checkAttempts}/50 - client.info: ${client.info ? 'SIM ✓' : 'não'}`);
+    
+    if (client.info) {
+      console.log(`\n[Eventos] ✅ CLIENTE PRONTO!`);
+      console.log(`[Eventos] Usuário conectado: ${client.info.pushname}`);
+      clearInterval(checkReadyInterval);
+    } else if (checkAttempts >= 50) {
+      console.log(`\n[Eventos] ⏱️ Timeout após 25 segundos de espera`);
+      console.log(`[Eventos] ⚠️ Continuando mesmo sem client.info...`);
+      console.log(`[Eventos] 🤖 Bot está pronto para receber mensagens!\n`);
+      clearInterval(checkReadyInterval);
+    }
+  }, 500);
+});
+
+// Quando a sessão é restaurada (sem precisar de QR code)
+client.on("remote_session_saved", () => {
+  console.log("[Eventos] ✅ Sessão remota salva com sucesso!");
+});
+
+client.on("ready", () => {
+  console.log("[Eventos] ✅ CLIENTE PRONTO! Bot online e aguardando mensagens");
+});
+
+// Listener para mudança de estado
+client.on("change_state", (state) => {
+  console.log(`[Eventos] 📊 Estado mudou para: ${state}`);
+});
+
+// Listener para conexão perdida
+client.on("connection_lost", () => {
+  console.log("[Eventos] ⚠️ Conexão perdida com WhatsApp Web");
+});
+
+// Listener para erro geral
+client.on("error", (error) => {
+  console.error("[Eventos] ❌ Erro:", error.message);
+});
+
+// Listener para falha de autenticação
+client.on("auth_failure", (msg) => {
+  console.error("[Eventos] ❌ Falha na autenticação:", msg);
+});
+
+// Listener para desconexão
+client.on("disconnected", (reason) => {
+  console.log("[Eventos] 🔌 Cliente desconectado:", reason);
+});
+
+// ============================================
+// LISTENER DE MENSAGENS (REGISTRAR ANTES DE INICIALIZAR)
+// ============================================
+
+client.on("message", async (msg) => {
+  const timestamp = new Date().toLocaleTimeString("pt-BR");
+  const isGroup = msg.from.endsWith("@g.us");
+  
+  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
+    console.log(`\n[${timestamp}] 📨 COMANDO: !treino`);
+    console.log(`[Handler] Comando !treino detectado`);
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`);
+    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
+
+    if (mensagemRetorno) {
+      msg.reply(mensagemRetorno);
+    } else {
+      console.error("Mensagem de retorno vazia.");
+      msg.reply("Erro ao gerar a mensagem de retorno.");
+    }
+  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
+    console.log(`\n[${timestamp}] 📨 COMANDO: !status`);
+    console.log(`[Handler] Comando !status detectado`);
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`);
+    const mensagemRetorno = await processarMensagemSemAtualizar(
+      "!status",
+      nomeUsuario
+    );
+
+    if (mensagemRetorno) {
+      msg.reply(mensagemRetorno);
+    } else {
+      console.error("Mensagem de retorno vazia.");
+      msg.reply("Erro ao gerar a mensagem de retorno.");
+    }
+  } else if (
+    (msg.body.startsWith("!pergunta ") || msg.body.startsWith("!p ")) &&
+    msg.from.endsWith("@g.us")
+  ) {
+    console.log(`\n[${timestamp}] 📨 COMANDO: ${msg.body.startsWith("!p ") ? "!p" : "!pergunta"}`);
+    console.log(`[Handler] Comando de pergunta detectado`);
+    let pergunta;
+    if (msg.body.startsWith("!p ")) {
+      pergunta = msg.body.substring(3).trim();
+    } else {
+      pergunta = msg.body.substring(10).trim();
+    }
+
+    if (pergunta) {
+      console.log(`[Handler] Pergunta para GPT: "${pergunta}"`);
+      const resposta = await obterRespostaGPT(pergunta);
+      console.log(`[Handler] Respondendo com: "${resposta}"`);
+      msg.reply(resposta);
+    } else {
+      msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
+    }
+  }
+});
+
+// ============================================
+// AGORA INICIALIZAR O CLIENTE
+// ============================================
+
 console.log("Inicializando cliente...");
 client.initialize();
-console.log("Cliente inicializado.");
+console.log("Cliente inicializado. Aguardando eventos...\n");
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4020;
 app.listen(PORT, () => {
   console.log(`Servidor iniciado na porta ${PORT}`);
 });
@@ -322,13 +470,8 @@ const obterRespostaGPT = async (pergunta) => {
     let mensagem = resposta.choices[0].message.content.trim();
     console.log(`[obterRespostaGPT] Resposta recebida (${mensagem.length} caracteres): "${mensagem.substring(0, 100)}..."`);
 
-    // Garante que a resposta não exceda 300 caracteres
-  console.log(`[WhatsApp] Mensagem recebida - De: ${msg.from} | Autor: ${msg.author} | Corpo: "${msg.body}"`);
-  
-  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
-    console.log(`[Handler] Comando !treino detectado`);
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`300 caracteres, truncando...`);
+    if (mensagem.length > 300) {
+      console.log(`[obterRespostaGPT] Resposta excedia 300 caracteres, truncando...`);
       mensagem = mensagem.substring(0, 297) + "...";
     }
 
@@ -338,87 +481,3 @@ const obterRespostaGPT = async (pergunta) => {
     return "Desculpe, não consegui processar sua pergunta no momento.";
   }
 };
-
-client.on("message", async (msg) => {
-  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
-
-    if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
-    } else {
-      console.error("Mensagem de retorno vazia.");
-      msg.reply("Erro ao gerar a mensagem de retorno.");
-    }
-  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
-    console.log(`[Handler] Comando !status detectado`);
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`);
-    const mensagemRetorno = await processarMensagemSemAtualizar(
-      "!status",
-      nomeUsuario
-    );
-
-    if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
-    } else {
-      console.error("Mensagem de retorno vazia.");
-      msg.reply("Erro ao gerar a mensagem de retorno.");
-    }
-  } else if (
-    (msg.body.startsWith("!pergunta ") || msg.body.startsWith("!p ")) &&
-    msg.from.endsWith("@g.us")
-  ) {
-    console.log(`[Handler] Comando de pergunta detectado`);
-    let pergunta;
-    if (msg.body.startsWith("!p ")) {
-      pergunta = msg.body.substring(3).trim();
-    } else {
-      pergunta = msg.body.substring(10).trim();
-    }
-
-    if (pergunta) {
-      console.log(`[Handler] Pergunta para GPT: "${pergunta}"`);
-      const resposta = await obterRespostaGPT(pergunta);
-      console.log(`[Handler] Respondendo com: "${resposta}"`);
-      msg.reply(resposta);
-    } else {
-      msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
-    }
-  } else if (msg.from.endsWith("@g.us") && !msg.isStatus) {
-    console.log(`[Handler] Mensagem genérica - enviando para GPT`);
-    const resposta = await obterRespostaGPT(msg.body);
-    console.log(`[Handler] Respondendo com: "${resposta}"`);
-    msg.reply(resposta);
-  }
-});
-
-client.on("qr", (qr) => {
-  console.log("QR code recebido, gerando base64...");
-  QRCode.toDataURL(qr, (err, base64Image) => {
-    if (err) {
-      console.error("Erro ao gerar QR code:", err);
-      return;
-    }
-    console.log("QR Code (base64):", base64Image);
-    console.log(
-      "Para visualizar o QR code, copie o conteúdo e cole em um navegador ou visualizador de base64."
-    );
-  });
-});
-
-client.on("ready", () => {
-  console.log("QR code escaneado, Aplicação online");
-});
-
-client.on("authenticated", () => {
-  console.log("Cliente autenticado com sucesso");
-});
-
-client.on("auth_failure", (msg) => {
-  console.error("Falha na autenticação", msg);
-});
-
-client.on("disconnected", (reason) => {
-  console.log("Cliente desconectado", reason);
-});
