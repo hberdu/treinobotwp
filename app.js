@@ -4,8 +4,10 @@ const QRCode = require("qrcode");
 const qrcodeTerminal = require("qrcode-terminal");
 const fs = require("fs");
 const path = require("path");
+const { OpenAI } = require("openai");
 const app = express();
 const port = 3000;
+
 
 const client = new Client({
   puppeteer: {
@@ -13,8 +15,8 @@ const client = new Client({
     args: ["--no-sandbox", "--disable-gpu"],
   },
   authStrategy: new NoAuth(),
-  authTimeoutMs: 300000, // Optional: timeout for authentication in milliseconds
-  qrTimeout: 300000, // Optional: timeout for QR code generation
+  authTimeoutMs: 300000,
+  qrTimeout: 300000,
 });
 
 const { initializeApp } = require("firebase/app");
@@ -42,6 +44,12 @@ const firebaseConfig = {
 const appFirebase = initializeApp(firebaseConfig);
 const db = getFirestore();
 
+const OPENAI_API_KEY = "sk-...jXsA";
+
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+});
+
 // Adicionando logs para inicialização do cliente
 console.log("Inicializando cliente...");
 client.initialize();
@@ -54,26 +62,33 @@ app.listen(PORT, () => {
 
 const insertNewTraining = async (athleteName) => {
   try {
+    console.log(`[insertNewTraining] Iniciando inserção de treino para: ${athleteName}`);
     const res = await addDoc(collection(db, "data-treino"), {
       nome: athleteName,
       "data-treino": new Date(),
     });
+    console.log(`[insertNewTraining] Treino inserido com sucesso. ID: ${res.id}`);
   } catch (error) {
-    console.error("Erro ao inserir treino", error);
+    console.error(`[insertNewTraining] Erro ao inserir treino para ${athleteName}:`, error);
     return "Erro ao inserir treino.";
   }
 };
 
 async function inserirAtleta(nomeUsuario) {
   try {
+    console.log(`[inserirAtleta] Processando atleta: ${nomeUsuario}`);
     const atletaRef = doc(db, "atletas2026", nomeUsuario);
 
     const atletaDoc = await getDoc(atletaRef);
+    console.log(`[inserirAtleta] Documento encontrado: ${atletaDoc.exists()}`);
+
 
     if (atletaDoc.exists()) {
       const dadosAtleta = atletaDoc.data();
+      console.log(`[inserirAtleta] Dados do atleta encontrados:`, dadosAtleta);
 
       await insertNewTraining(dadosAtleta.nome);
+
 
       if (!dadosAtleta || typeof dadosAtleta.treinos === "undefined") {
         throw new Error("Dados do atleta estão incompletos ou inválidos.");
@@ -96,9 +111,11 @@ async function inserirAtleta(nomeUsuario) {
         progressoSemanal: progressoSemanal,
         meta: meta,
       });
+      console.log(`[inserirAtleta] Atleta ${nomeUsuario} atualizado. Treinos: ${novoNumeroTreinos}, Progresso: ${progresso}`);
 
       return `Número de treinos de ${nomeUsuario} atualizado para ${novoNumeroTreinos}.`;
     } else {
+      console.log(`[inserirAtleta] Novo atleta. Criando documento para: ${nomeUsuario}`);
       await setDoc(atletaRef, {
         nome: nomeUsuario,
         treinos: 1,
@@ -108,6 +125,7 @@ async function inserirAtleta(nomeUsuario) {
       });
 
       await insertNewTraining(nomeUsuario);
+      console.log(`[inserirAtleta] Novo atleta ${nomeUsuario} criado com sucesso`);
 
       return `Atleta ${nomeUsuario}, seu primeiro treino foi gerado.`;
     }
@@ -287,6 +305,40 @@ const gerarTabelaTreinos = async () => {
   }
 };
 
+const obterRespostaGPT = async (pergunta) => {
+  try {
+    console.log(`[obterRespostaGPT] Enviando pergunta ao ChatGPT: "${pergunta}"`);
+    const resposta = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "user",
+          content: `Responda com no máximo 300 caracteres: ${pergunta}`,
+        },
+      ],
+      max_tokens: 100,
+    });
+
+    let mensagem = resposta.choices[0].message.content.trim();
+    console.log(`[obterRespostaGPT] Resposta recebida (${mensagem.length} caracteres): "${mensagem.substring(0, 100)}..."`);
+
+    // Garante que a resposta não exceda 300 caracteres
+  console.log(`[WhatsApp] Mensagem recebida - De: ${msg.from} | Autor: ${msg.author} | Corpo: "${msg.body}"`);
+  
+  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
+    console.log(`[Handler] Comando !treino detectado`);
+    const nomeUsuario = await getNomeUsuario(msg.author);
+    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`300 caracteres, truncando...`);
+      mensagem = mensagem.substring(0, 297) + "...";
+    }
+
+    return mensagem;
+  } catch (error) {
+    console.error("Erro ao chamar ChatGPT:", error);
+    return "Desculpe, não consegui processar sua pergunta no momento.";
+  }
+};
+
 client.on("message", async (msg) => {
   if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
     const nomeUsuario = await getNomeUsuario(msg.author);
@@ -299,7 +351,9 @@ client.on("message", async (msg) => {
       msg.reply("Erro ao gerar a mensagem de retorno.");
     }
   } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
+    console.log(`[Handler] Comando !status detectado`);
     const nomeUsuario = await getNomeUsuario(msg.author);
+    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`);
     const mensagemRetorno = await processarMensagemSemAtualizar(
       "!status",
       nomeUsuario
@@ -311,6 +365,31 @@ client.on("message", async (msg) => {
       console.error("Mensagem de retorno vazia.");
       msg.reply("Erro ao gerar a mensagem de retorno.");
     }
+  } else if (
+    (msg.body.startsWith("!pergunta ") || msg.body.startsWith("!p ")) &&
+    msg.from.endsWith("@g.us")
+  ) {
+    console.log(`[Handler] Comando de pergunta detectado`);
+    let pergunta;
+    if (msg.body.startsWith("!p ")) {
+      pergunta = msg.body.substring(3).trim();
+    } else {
+      pergunta = msg.body.substring(10).trim();
+    }
+
+    if (pergunta) {
+      console.log(`[Handler] Pergunta para GPT: "${pergunta}"`);
+      const resposta = await obterRespostaGPT(pergunta);
+      console.log(`[Handler] Respondendo com: "${resposta}"`);
+      msg.reply(resposta);
+    } else {
+      msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
+    }
+  } else if (msg.from.endsWith("@g.us") && !msg.isStatus) {
+    console.log(`[Handler] Mensagem genérica - enviando para GPT`);
+    const resposta = await obterRespostaGPT(msg.body);
+    console.log(`[Handler] Respondendo com: "${resposta}"`);
+    msg.reply(resposta);
   }
 });
 
