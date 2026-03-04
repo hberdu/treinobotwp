@@ -13,7 +13,7 @@ const port = 3000;
 
 
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: path.join(rootDir, '.wwebjs_auth_daily') }),
   puppeteer: {
     headless: true,
     args: ["--no-sandbox", "--disable-gpu"],
