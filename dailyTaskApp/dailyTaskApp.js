@@ -1,10 +1,12 @@
-require('dotenv').config();
+const path = require("path");
+const rootDir = path.resolve(__dirname, '..');
+require('dotenv').config({ path: path.join(rootDir, '.env') });
+
 const express = require("express");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const QRCode = require("qrcode");
 const qrcodeTerminal = require("qrcode-terminal");
 const fs = require("fs");
-const path = require("path");
 const { OpenAI } = require("openai");
 const app = express();
 const port = 3000;
