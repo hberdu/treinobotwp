@@ -11,7 +11,7 @@ const port = 3000;
 
 
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth_treino') }),
   puppeteer: {
     headless: true,
     args: ["--no-sandbox", "--disable-gpu"],
@@ -133,6 +133,10 @@ client.on("auth_failure", (msg) => {
 // Listener para desconexão
 client.on("disconnected", (reason) => {
   console.log("[Eventos] 🔌 Cliente desconectado:", reason);
+  console.log("[Eventos] 🔄 Tentando reconectar em 10 segundos...");
+  setTimeout(() => {
+    client.initialize();
+  }, 10000); // 10 segundos de delay
 });
 
 // ============================================
@@ -140,10 +144,11 @@ client.on("disconnected", (reason) => {
 // ============================================
 
 client.on("message", async (msg) => {
-  const timestamp = new Date().toLocaleTimeString("pt-BR");
-  const isGroup = msg.from.endsWith("@g.us");
-  
-  if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
+  try {
+    const timestamp = new Date().toLocaleTimeString("pt-BR");
+    const isGroup = msg.from.endsWith("@g.us");
+    
+    if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
     console.log(`\n[${timestamp}] 📨 COMANDO: !treino`);
     console.log(`[Handler] Comando !treino detectado`);
     const nomeUsuario = await getNomeUsuario(msg.author);
@@ -193,6 +198,9 @@ client.on("message", async (msg) => {
     } else {
       msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
     }
+  }
+  } catch (error) {
+    console.error("[Eventos] Erro no processamento da mensagem:", error);
   }
 });
 
