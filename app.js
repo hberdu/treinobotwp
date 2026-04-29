@@ -131,11 +131,16 @@ client.on("auth_failure", (msg) => {
 });
 
 // Listener para desconexão
-client.on("disconnected", (reason) => {
+client.on("disconnected", async (reason) => {
   console.log("[Eventos] 🔌 Cliente desconectado:", reason);
   console.log("[Eventos] 🔄 Tentando reconectar em 10 segundos...");
-  setTimeout(() => {
-    client.initialize();
+  setTimeout(async () => {
+    try {
+      await client.initialize();
+      console.log("[Eventos] Reconexão bem-sucedida.");
+    } catch (error) {
+      console.error("[Eventos] Erro na reconexão:", error);
+    }
   }, 10000); // 10 segundos de delay
 });
 
@@ -156,10 +161,18 @@ client.on("message", async (msg) => {
     const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
 
     if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
+      try {
+        await msg.reply(mensagemRetorno);
+      } catch (replyError) {
+        console.error("[Handler] Erro ao enviar resposta para !treino:", replyError.message);
+      }
     } else {
       console.error("Mensagem de retorno vazia.");
-      msg.reply("Erro ao gerar a mensagem de retorno.");
+      try {
+        await msg.reply("Erro ao gerar a mensagem de retorno.");
+      } catch (replyError) {
+        console.error("[Handler] Erro ao enviar mensagem de erro para !treino:", replyError.message);
+      }
     }
   } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
     console.log(`\n[${timestamp}] 📨 COMANDO: !status`);
@@ -172,10 +185,18 @@ client.on("message", async (msg) => {
     );
 
     if (mensagemRetorno) {
-      msg.reply(mensagemRetorno);
+      try {
+        await msg.reply(mensagemRetorno);
+      } catch (replyError) {
+        console.error("[Handler] Erro ao enviar resposta para !status:", replyError.message);
+      }
     } else {
       console.error("Mensagem de retorno vazia.");
-      msg.reply("Erro ao gerar a mensagem de retorno.");
+      try {
+        await msg.reply("Erro ao gerar a mensagem de retorno.");
+      } catch (replyError) {
+        console.error("[Handler] Erro ao enviar mensagem de erro para !status:", replyError.message);
+      }
     }
   } else if (
     (msg.body.startsWith("!pergunta ") || msg.body.startsWith("!p ")) &&
@@ -194,9 +215,17 @@ client.on("message", async (msg) => {
       console.log(`[Handler] Pergunta para GPT: "${pergunta}"`);
       const resposta = await obterRespostaGPT(pergunta);
       console.log(`[Handler] Respondendo com: "${resposta}"`);
-      msg.reply(resposta);
+      try {
+        await msg.reply(resposta);
+      } catch (replyError) {
+        console.error("[Handler] Erro ao enviar resposta para pergunta:", replyError.message);
+      }
     } else {
-      msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
+      try {
+        await msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
+      } catch (replyError) {
+        console.error("[Handler] Erro ao enviar mensagem de erro para pergunta:", replyError.message);
+      }
     }
   }
   } catch (error) {
@@ -209,8 +238,13 @@ client.on("message", async (msg) => {
 // ============================================
 
 console.log("Inicializando cliente...");
-client.initialize();
-console.log("Cliente inicializado. Aguardando eventos...\n");
+try {
+  await client.initialize();
+  console.log("Cliente inicializado. Aguardando eventos...\n");
+} catch (error) {
+  console.error("Erro ao inicializar cliente:", error);
+  process.exit(1);
+}
 
 const PORT = process.env.PORT || 4020;
 app.listen(PORT, () => {
