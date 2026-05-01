@@ -237,14 +237,16 @@ client.on("message", async (msg) => {
 // AGORA INICIALIZAR O CLIENTE
 // ============================================
 
-console.log("Inicializando cliente...");
-try {
-  await client.initialize();
-  console.log("Cliente inicializado. Aguardando eventos...\n");
-} catch (error) {
-  console.error("Erro ao inicializar cliente:", error);
-  process.exit(1);
-}
+(async () => {
+  console.log("Inicializando cliente...");
+  try {
+    await client.initialize();
+    console.log("Cliente inicializado. Aguardando eventos...\n");
+  } catch (error) {
+    console.error("Erro ao inicializar cliente:", error);
+    process.exit(1);
+  }
+})();
 
 const PORT = process.env.PORT || 4020;
 app.listen(PORT, () => {
