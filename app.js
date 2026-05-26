@@ -1,27 +1,12 @@
-require('dotenv').config();
+'use strict';
+
+require('dotenv').config({ quiet: true });
+
 const express = require("express");
-const { Client, LocalAuth } = require("whatsapp-web.js");
-const QRCode = require("qrcode");
-const qrcodeTerminal = require("qrcode-terminal");
-const fs = require("fs");
 const path = require("path");
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const qrcodeTerminal = require("qrcode-terminal");
 const { OpenAI } = require("openai");
-const app = express();
-const port = 3000;
-
-
-const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth_treino') }),
-  puppeteer: {
-    headless: true,
-    args: ["--no-sandbox", "--disable-gpu"],
-  },
-  webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wwebjs/wa-web-cache/master/data/'
-  }
-});
-
 const { initializeApp } = require("firebase/app");
 const {
   getFirestore,
@@ -34,357 +19,449 @@ const {
   addDoc,
 } = require("firebase/firestore");
 
-const firebaseConfig = {
-  apiKey: "AIzaSyD2prl1jdMUdkNdQkidySfYFwTdLkinZV4",
-  authDomain: "treinobot.firebaseapp.com",
-  databaseURL: "https://treinobot-default-rtdb.firebaseio.com",
-  projectId: "treinobot",
-  storageBucket: "treinobot.appspot.com",
-  messagingSenderId: "720957000050",
-  appId: "1:720957000050:web:b753545187bf4f186ff5eb",
-};
-
-const appFirebase = initializeApp(firebaseConfig);
-const db = getFirestore();
-
-// Usar variável de ambiente para a chave de API
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-if (!OPENAI_API_KEY) {
-  console.error("[ERRO] OPENAI_API_KEY não configurada! Configure a variável de ambiente.");
-  process.exit(1);
-}
-
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
+// ============================================
+// CONSTANTES
+// ============================================
+const CONFIG = Object.freeze({
+  DEFAULT_HTTP_PORT: Number(process.env.PORT || 4020),
+  MAX_BACKOFF_MS: 5 * 60 * 1000,
+  INITIAL_BACKOFF_MS: 5_000,
+  DISCONNECT_RECONNECT_DELAY_MS: 10_000,
+  HTTP_RETRY_DELAY_MS: 2_000,
+  READY_CHECK_INTERVAL_MS: 500,
+  READY_CHECK_MAX_ATTEMPTS: 50,
+  GPT_MAX_CHARS: 300,
+  GPT_MAX_TOKENS: 100,
+  GPT_MODEL: "gpt-3.5-turbo",
+  SEMANAS_NO_ANO: 52,
+  META_PADRAO: 5,
+  AUTH_DATA_PATH: path.join(__dirname, ".wwebjs_auth_treino"),
+  GROUP_SUFFIX: "@g.us",
 });
 
-// Flag para garantir que não criamos múltiplos intervalos
+const FIREBASE_CONFIG = Object.freeze({
+  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyD2prl1jdMUdkNdQkidySfYFwTdLkinZV4",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "treinobot.firebaseapp.com",
+  databaseURL: process.env.FIREBASE_DATABASE_URL || "https://treinobot-default-rtdb.firebaseio.com",
+  projectId: process.env.FIREBASE_PROJECT_ID || "treinobot",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "treinobot.appspot.com",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "720957000050",
+  appId: process.env.FIREBASE_APP_ID || "1:720957000050:web:b753545187bf4f186ff5eb",
+});
+
+// ============================================
+// LOGGER COM TIMESTAMP
+// ============================================
+const ts = () => new Date().toISOString();
+const log = Object.freeze({
+  info: (scope, ...args) => console.log(`[${ts()}] [${scope}]`, ...args),
+  warn: (scope, ...args) => console.warn(`[${ts()}] [${scope}] ⚠️`, ...args),
+  error: (scope, ...args) => console.error(`[${ts()}] [${scope}] ❌`, ...args),
+  ok: (scope, ...args) => console.log(`[${ts()}] [${scope}] ✅`, ...args),
+});
+
+// ============================================
+// EXPRESS APP
+// ============================================
+const app = express();
+app.disable("x-powered-by");
+app.use(express.json());
+app.get("/healthz", (_req, res) => {
+  res.json({
+    status: "ok",
+    uptimeSeconds: Math.round(process.uptime()),
+    whatsappReady: Boolean(client?.info),
+    reconnectAttempt,
+    timestamp: ts(),
+  });
+});
+
+// ============================================
+// WHATSAPP CLIENT
+// ============================================
+const client = new Client({
+  authStrategy: new LocalAuth({ dataPath: CONFIG.AUTH_DATA_PATH }),
+  puppeteer: {
+    headless: true,
+    args: ["--no-sandbox", "--disable-gpu"],
+  },
+  webVersionCache: {
+    type: "remote",
+    remotePath: "https://raw.githubusercontent.com/wwebjs/wa-web-cache/master/data/",
+  },
+});
+
+// ============================================
+// FIREBASE
+// ============================================
+initializeApp(FIREBASE_CONFIG);
+const db = getFirestore();
+
+// ============================================
+// OPENAI (opcional)
+// ============================================
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const hasOpenAIKey = Boolean(OPENAI_API_KEY);
+if (!hasOpenAIKey) {
+  log.warn("OpenAI", "OPENAI_API_KEY não configurada. Comandos de IA ficarão indisponíveis, mas o bot continuará online.");
+}
+const openai = hasOpenAIKey ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
+
+// ============================================
+// ESTADO DE RECONEXÃO
+// ============================================
 let readyCheckStarted = false;
+let isInitializing = false;
+let reconnectTimer = null;
+let reconnectAttempt = 0;
+
+function computeBackoff(attempt) {
+  const base = CONFIG.INITIAL_BACKOFF_MS * Math.pow(2, Math.max(0, attempt - 1));
+  return Math.min(base, CONFIG.MAX_BACKOFF_MS);
+}
+
+function scheduleReinitialize(reason, delayMs) {
+  if (reconnectTimer) {
+    log.info("Reconexao", `Já existe reagendamento pendente. Ignorando novo trigger (motivo: ${reason}).`);
+    return;
+  }
+  reconnectAttempt += 1;
+  const wait = typeof delayMs === "number" ? delayMs : computeBackoff(reconnectAttempt);
+  log.warn("Reconexao", `Tentativa #${reconnectAttempt} agendada em ${Math.round(wait / 1000)}s. Motivo: ${reason}`);
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    log.info("Reconexao", `Executando tentativa #${reconnectAttempt} (motivo original: ${reason})`);
+    await initializeClient();
+  }, wait);
+}
+
+async function initializeClient() {
+  if (isInitializing) {
+    log.info("Init", "Inicialização já em andamento. Ignorando chamada duplicada.");
+    return;
+  }
+  isInitializing = true;
+  log.info("Init", `Inicializando cliente WhatsApp (tentativa #${reconnectAttempt + (reconnectAttempt === 0 ? 1 : 0)})...`);
+  try {
+    await client.initialize();
+    log.ok("Init", "client.initialize() retornou. Aguardando eventos de autenticação/ready.");
+    reconnectAttempt = 0;
+  } catch (error) {
+    log.error("Init", "Falha ao inicializar cliente:", error?.message || error);
+    scheduleReinitialize("falha_initialize");
+  } finally {
+    isInitializing = false;
+  }
+}
 
 // ============================================
 // REGISTRAR TODOS OS LISTENERS ANTES DE INICIALIZAR
 // ============================================
 
 client.on("loading_screen", (percent, message) => {
-  console.log(`[Cliente] Carregando: ${percent}% - ${message}`);
+  log.info("Cliente", `Carregando: ${percent}% - ${message}`);
 });
 
 client.on("qr", (qr) => {
-  console.log("\n[Eventos] ⏳ QR CODE - Escaneie com seu WhatsApp:\n");
+  log.info("QR", "QR CODE gerado. Escaneie com seu WhatsApp:");
   qrcodeTerminal.generate(qr, { small: true });
-  console.log("\n[Eventos] QR Code gerado acima. Aguardando escaneamento...\n");
+  log.info("QR", "Aguardando escaneamento...");
 });
 
 client.on("authenticated", () => {
-  console.log("[Eventos] ✓ Autenticado com sucesso! Sessão salva em .wwebjs_auth");
-  
-  // Verificar apenas uma vez se client.info fica disponível
+  log.ok("Auth", "Autenticado com sucesso. Sessão salva em .wwebjs_auth_treino");
+
   if (readyCheckStarted) return;
   readyCheckStarted = true;
-  
+
   let checkAttempts = 0;
   const checkReadyInterval = setInterval(() => {
     checkAttempts++;
-    console.log(`[Verificação] Tentativa ${checkAttempts}/50 - client.info: ${client.info ? 'SIM ✓' : 'não'}`);
-    
+    log.info("Verificacao", `Tentativa ${checkAttempts}/${CONFIG.READY_CHECK_MAX_ATTEMPTS} - client.info: ${client.info ? "SIM" : "não"}`);
     if (client.info) {
-      console.log(`\n[Eventos] ✅ CLIENTE PRONTO!`);
-      console.log(`[Eventos] Usuário conectado: ${client.info.pushname}`);
+      log.ok("Cliente", `Pronto! Usuário conectado: ${client.info.pushname}`);
       clearInterval(checkReadyInterval);
-    } else if (checkAttempts >= 50) {
-      console.log(`\n[Eventos] ⏱️ Timeout após 25 segundos de espera`);
-      console.log(`[Eventos] ⚠️ Continuando mesmo sem client.info...`);
-      console.log(`[Eventos] 🤖 Bot está pronto para receber mensagens!\n`);
+    } else if (checkAttempts >= CONFIG.READY_CHECK_MAX_ATTEMPTS) {
+      log.warn("Cliente", "Timeout aguardando client.info. Seguindo mesmo assim.");
       clearInterval(checkReadyInterval);
     }
-  }, 500);
+  }, CONFIG.READY_CHECK_INTERVAL_MS);
 });
 
-// Quando a sessão é restaurada (sem precisar de QR code)
 client.on("remote_session_saved", () => {
-  console.log("[Eventos] ✅ Sessão remota salva com sucesso!");
+  log.ok("Sessao", "Sessão remota salva com sucesso.");
 });
 
 client.on("ready", () => {
-  console.log("[Eventos] ✅ CLIENTE PRONTO! Bot online e aguardando mensagens");
+  log.ok("Cliente", "READY! Bot online e aguardando mensagens.");
+  reconnectAttempt = 0;
 });
 
-// Listener para mudança de estado
 client.on("change_state", (state) => {
-  console.log(`[Eventos] 📊 Estado mudou para: ${state}`);
+  log.info("Estado", `Mudou para: ${state}`);
 });
 
-// Listener para conexão perdida
 client.on("connection_lost", () => {
-  console.log("[Eventos] ⚠️ Conexão perdida com WhatsApp Web");
+  log.warn("Conexao", "Conexão perdida com WhatsApp Web. Aguardando recuperação automática...");
 });
 
-// Listener para erro geral
 client.on("error", (error) => {
-  console.error("[Eventos] ❌ Erro:", error.message);
+  log.error("Cliente", "Erro reportado pelo client:", error?.message || error);
 });
 
-// Listener para falha de autenticação
 client.on("auth_failure", (msg) => {
-  console.error("[Eventos] ❌ Falha na autenticação:", msg);
+  log.error("Auth", "Falha na autenticação:", msg);
+  readyCheckStarted = false;
+  scheduleReinitialize("auth_failure");
 });
 
-// Listener para desconexão
-client.on("disconnected", async (reason) => {
-  console.log("[Eventos] 🔌 Cliente desconectado:", reason);
-  console.log("[Eventos] 🔄 Tentando reconectar em 10 segundos...");
-  setTimeout(async () => {
+client.on("disconnected", (reason) => {
+  log.warn("Conexao", `Cliente desconectado. Motivo: ${reason}`);
+  readyCheckStarted = false;
+  // Tenta destruir o client antes de reiniciar para liberar recursos do puppeteer.
+  (async () => {
     try {
-      await client.initialize();
-      console.log("[Eventos] Reconexão bem-sucedida.");
-    } catch (error) {
-      console.error("[Eventos] Erro na reconexão:", error);
+      await client.destroy();
+      log.info("Conexao", "client.destroy() concluído.");
+    } catch (e) {
+      log.warn("Conexao", "Erro ao destruir client (ignorado):", e?.message || e);
+    } finally {
+      scheduleReinitialize(`disconnected:${reason}`, 10000);
     }
-  }, 10000); // 10 segundos de delay
+  })();
 });
 
 // ============================================
-// LISTENER DE MENSAGENS (REGISTRAR ANTES DE INICIALIZAR)
+// DISPATCHER DE COMANDOS
 // ============================================
+async function safeReply(msg, content, contexto) {
+  try {
+    await msg.reply(content);
+  } catch (error) {
+    log.error("Handler", `Erro ao enviar resposta (${contexto}):`, error?.message || error);
+  }
+}
+
+async function handleTreino(msg) {
+  log.info("Handler", "Comando !treino detectado");
+  const nomeUsuario = await getNomeUsuario(msg.author);
+  log.info("Handler", `Usuário: ${nomeUsuario}`);
+  const retorno = await processarMensagem("!treino", nomeUsuario);
+  await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!treino");
+}
+
+async function handleStatus(msg) {
+  log.info("Handler", "Comando !status detectado");
+  const nomeUsuario = await getNomeUsuario(msg.author);
+  log.info("Handler", `Usuário: ${nomeUsuario}`);
+  const retorno = await processarMensagemSemAtualizar("!status", nomeUsuario);
+  await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!status");
+}
+
+async function handlePergunta(msg) {
+  const body = msg.body;
+  const prefixo = body.startsWith("!p ") ? "!p " : "!pergunta ";
+  const pergunta = body.slice(prefixo.length).trim();
+  log.info("Handler", `Comando de pergunta detectado (${prefixo.trim()})`);
+
+  if (!pergunta) {
+    await safeReply(msg, "Por favor, digite uma pergunta após o comando !p ou !pergunta", "pergunta-vazia");
+    return;
+  }
+
+  log.info("Handler", `Pergunta para GPT: "${pergunta}"`);
+  const resposta = await obterRespostaGPT(pergunta);
+  log.info("Handler", `Respondendo com: "${resposta}"`);
+  await safeReply(msg, resposta, "pergunta");
+}
+
+const COMMAND_HANDLERS = [
+  { match: (body) => body.startsWith("!treino"), handler: handleTreino, label: "!treino" },
+  { match: (body) => body.startsWith("!status"), handler: handleStatus, label: "!status" },
+  { match: (body) => body.startsWith("!pergunta ") || body.startsWith("!p "), handler: handlePergunta, label: "!pergunta" },
+];
 
 client.on("message", async (msg) => {
   try {
-    const timestamp = new Date().toLocaleTimeString("pt-BR");
-    const isGroup = msg.from.endsWith("@g.us");
-    
-    if (msg.body.startsWith("!treino") && msg.from.endsWith("@g.us")) {
-    console.log(`\n[${timestamp}] 📨 COMANDO: !treino`);
-    console.log(`[Handler] Comando !treino detectado`);
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`);
-    const mensagemRetorno = await processarMensagem("!treino", nomeUsuario);
+    if (!msg?.from?.endsWith(CONFIG.GROUP_SUFFIX)) return;
+    if (!msg?.body) return;
 
-    if (mensagemRetorno) {
-      try {
-        await msg.reply(mensagemRetorno);
-      } catch (replyError) {
-        console.error("[Handler] Erro ao enviar resposta para !treino:", replyError.message);
-      }
-    } else {
-      console.error("Mensagem de retorno vazia.");
-      try {
-        await msg.reply("Erro ao gerar a mensagem de retorno.");
-      } catch (replyError) {
-        console.error("[Handler] Erro ao enviar mensagem de erro para !treino:", replyError.message);
-      }
-    }
-  } else if (msg.body.startsWith("!status") && msg.from.endsWith("@g.us")) {
-    console.log(`\n[${timestamp}] 📨 COMANDO: !status`);
-    console.log(`[Handler] Comando !status detectado`);
-    const nomeUsuario = await getNomeUsuario(msg.author);
-    console.log(`[Handler] Nome do usuário: ${nomeUsuario}`);
-    const mensagemRetorno = await processarMensagemSemAtualizar(
-      "!status",
-      nomeUsuario
-    );
+    const entry = COMMAND_HANDLERS.find((c) => c.match(msg.body));
+    if (!entry) return;
 
-    if (mensagemRetorno) {
-      try {
-        await msg.reply(mensagemRetorno);
-      } catch (replyError) {
-        console.error("[Handler] Erro ao enviar resposta para !status:", replyError.message);
-      }
-    } else {
-      console.error("Mensagem de retorno vazia.");
-      try {
-        await msg.reply("Erro ao gerar a mensagem de retorno.");
-      } catch (replyError) {
-        console.error("[Handler] Erro ao enviar mensagem de erro para !status:", replyError.message);
-      }
-    }
-  } else if (
-    (msg.body.startsWith("!pergunta ") || msg.body.startsWith("!p ")) &&
-    msg.from.endsWith("@g.us")
-  ) {
-    console.log(`\n[${timestamp}] 📨 COMANDO: ${msg.body.startsWith("!p ") ? "!p" : "!pergunta"}`);
-    console.log(`[Handler] Comando de pergunta detectado`);
-    let pergunta;
-    if (msg.body.startsWith("!p ")) {
-      pergunta = msg.body.substring(3).trim();
-    } else {
-      pergunta = msg.body.substring(10).trim();
-    }
-
-    if (pergunta) {
-      console.log(`[Handler] Pergunta para GPT: "${pergunta}"`);
-      const resposta = await obterRespostaGPT(pergunta);
-      console.log(`[Handler] Respondendo com: "${resposta}"`);
-      try {
-        await msg.reply(resposta);
-      } catch (replyError) {
-        console.error("[Handler] Erro ao enviar resposta para pergunta:", replyError.message);
-      }
-    } else {
-      try {
-        await msg.reply("Por favor, digite uma pergunta após o comando !p ou !pergunta");
-      } catch (replyError) {
-        console.error("[Handler] Erro ao enviar mensagem de erro para pergunta:", replyError.message);
-      }
-    }
-  }
+    log.info("Mensagem", `COMANDO recebido: ${entry.label}`);
+    await entry.handler(msg);
   } catch (error) {
-    console.error("[Eventos] Erro no processamento da mensagem:", error);
+    log.error("Mensagem", "Erro no processamento da mensagem:", error?.message || error);
   }
 });
+
+// ============================================
+// HANDLERS GLOBAIS DE CRASH (não derrubam o processo)
+// ============================================
+process.on("uncaughtException", (err) => {
+  log.error("Process", "uncaughtException:", err?.stack || err);
+  scheduleReinitialize("uncaughtException");
+});
+
+process.on("unhandledRejection", (reason) => {
+  log.error("Process", "unhandledRejection:", reason?.stack || reason);
+  scheduleReinitialize("unhandledRejection");
+});
+
+process.on("SIGTERM", () => {
+  log.warn("Process", "SIGTERM recebido. Encerrando graciosamente...");
+  shutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  log.warn("Process", "SIGINT recebido. Encerrando graciosamente...");
+  shutdown("SIGINT");
+});
+
+async function shutdown(signal) {
+  try {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    await client.destroy().catch(() => {});
+  } finally {
+    log.info("Process", `Shutdown concluído (${signal}). Encerrando.`);
+    process.exit(0);
+  }
+}
 
 // ============================================
 // AGORA INICIALIZAR O CLIENTE
 // ============================================
+initializeClient();
 
-(async () => {
-  console.log("Inicializando cliente...");
-  try {
-    await client.initialize();
-    console.log("Cliente inicializado. Aguardando eventos...\n");
-  } catch (error) {
-    console.error("Erro ao inicializar cliente:", error);
-    process.exit(1);
-  }
-})();
+// ============================================
+// SERVIDOR HTTP COM TRATAMENTO DE EADDRINUSE
+// ============================================
+function startHttpServer(portToUse, attempt = 1) {
+  const server = app.listen(portToUse, () => {
+    log.ok("HTTP", `Servidor iniciado na porta ${portToUse}`);
+  });
 
-const PORT = process.env.PORT || 4020;
-app.listen(PORT, () => {
-  console.log(`Servidor iniciado na porta ${PORT}`);
-});
+  server.on("error", (error) => {
+    if (error && error.code === "EADDRINUSE") {
+      const nextPort = Number(portToUse) + 1;
+      log.warn("HTTP", `Porta ${portToUse} em uso (EADDRINUSE). Tentando ${nextPort} em ${CONFIG.HTTP_RETRY_DELAY_MS / 1000}s... (tentativa ${attempt})`);
+      setTimeout(() => startHttpServer(nextPort, attempt + 1), CONFIG.HTTP_RETRY_DELAY_MS);
+      return;
+    }
+    log.error("HTTP", "Erro no servidor Express:", error?.message || error);
+    setTimeout(() => startHttpServer(portToUse, attempt + 1), CONFIG.HTTP_RETRY_DELAY_MS * 2);
+  });
+}
+
+startHttpServer(CONFIG.DEFAULT_HTTP_PORT);
 
 const insertNewTraining = async (athleteName) => {
   try {
-    console.log(`[insertNewTraining] Iniciando inserção de treino para: ${athleteName}`);
+    log.info("insertNewTraining", `Inserindo treino para: ${athleteName}`);
     const res = await addDoc(collection(db, "data-treino"), {
       nome: athleteName,
       "data-treino": new Date(),
     });
-    console.log(`[insertNewTraining] Treino inserido com sucesso. ID: ${res.id}`);
+    log.ok("insertNewTraining", `Treino inserido. ID: ${res.id}`);
   } catch (error) {
-    console.error(`[insertNewTraining] Erro ao inserir treino para ${athleteName}:`, error);
+    log.error("insertNewTraining", `Erro ao inserir treino para ${athleteName}:`, error?.message || error);
     return "Erro ao inserir treino.";
   }
 };
 
 async function inserirAtleta(nomeUsuario) {
   try {
-    console.log(`[inserirAtleta] Processando atleta: ${nomeUsuario}`);
+    log.info("inserirAtleta", `Processando atleta: ${nomeUsuario}`);
     const atletaRef = doc(db, "atletas2026", nomeUsuario);
-
     const atletaDoc = await getDoc(atletaRef);
-    console.log(`[inserirAtleta] Documento encontrado: ${atletaDoc.exists()}`);
-
+    log.info("inserirAtleta", `Documento existe: ${atletaDoc.exists()}`);
 
     if (atletaDoc.exists()) {
       const dadosAtleta = atletaDoc.data();
-      console.log(`[inserirAtleta] Dados do atleta encontrados:`, dadosAtleta);
-
-      await insertNewTraining(dadosAtleta.nome);
-
 
       if (!dadosAtleta || typeof dadosAtleta.treinos === "undefined") {
         throw new Error("Dados do atleta estão incompletos ou inválidos.");
       }
 
+      await insertNewTraining(dadosAtleta.nome);
+
       const novoNumeroTreinos = (dadosAtleta.treinos || 0) + 1;
-      let progresso = dadosAtleta.progresso || 0;
-      const meta = dadosAtleta.meta || 5;
-      let progressoSemanal = dadosAtleta.progressoSemanal || 0;
-
-      progresso += 1;
-
-      if (progresso === meta) {
-        progressoSemanal += 1;
-      }
+      const meta = dadosAtleta.meta || CONFIG.META_PADRAO;
+      const progresso = (dadosAtleta.progresso || 0) + 1;
+      const progressoSemanal = (dadosAtleta.progressoSemanal || 0) + (progresso === meta ? 1 : 0);
 
       await updateDoc(atletaRef, {
         treinos: novoNumeroTreinos,
-        progresso: progresso,
-        progressoSemanal: progressoSemanal,
-        meta: meta,
+        progresso,
+        progressoSemanal,
+        meta,
       });
-      console.log(`[inserirAtleta] Atleta ${nomeUsuario} atualizado. Treinos: ${novoNumeroTreinos}, Progresso: ${progresso}`);
+      log.ok("inserirAtleta", `Atleta ${nomeUsuario} atualizado. Treinos: ${novoNumeroTreinos}, Progresso: ${progresso}`);
 
       return `Número de treinos de ${nomeUsuario} atualizado para ${novoNumeroTreinos}.`;
-    } else {
-      console.log(`[inserirAtleta] Novo atleta. Criando documento para: ${nomeUsuario}`);
-      await setDoc(atletaRef, {
-        nome: nomeUsuario,
-        treinos: 1,
-        progresso: 1,
-        progressoSemanal: 0,
-        meta: 5,
-      });
-
-      await insertNewTraining(nomeUsuario);
-      console.log(`[inserirAtleta] Novo atleta ${nomeUsuario} criado com sucesso`);
-
-      return `Atleta ${nomeUsuario}, seu primeiro treino foi gerado.`;
     }
+
+    log.info("inserirAtleta", `Novo atleta. Criando documento: ${nomeUsuario}`);
+    await setDoc(atletaRef, {
+      nome: nomeUsuario,
+      treinos: 1,
+      progresso: 1,
+      progressoSemanal: 0,
+      meta: CONFIG.META_PADRAO,
+    });
+    await insertNewTraining(nomeUsuario);
+    log.ok("inserirAtleta", `Novo atleta ${nomeUsuario} criado com sucesso`);
+    return `Atleta ${nomeUsuario}, seu primeiro treino foi gerado.`;
   } catch (error) {
-    console.error("Erro ao inserir/atualizar atleta:", error);
+    log.error("inserirAtleta", "Erro ao inserir/atualizar atleta:", error?.message || error);
     return "Erro ao inserir/atualizar atleta.";
   }
 }
 
-async function processarMensagem(mensagem, nomeUsuario) {
+function montarCabecalhoSemana() {
   const semanaAtual = getSemanaAtual();
-  const semanasNoAno = 52;
-  const semanasRestantes = semanasNoAno - semanaAtual;
-  if (mensagem === "!treino") {
-    try {
-      const mensagemAtleta = await inserirAtleta(nomeUsuario);
-      const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
-      const texto = `
-Projeto semana ${semanaAtual}/${semanasNoAno} 
-(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString(
-        "pt-br"
-      )})
+  const semanasRestantes = CONFIG.SEMANAS_NO_ANO - semanaAtual;
+  const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
+  return `
+Projeto semana ${semanaAtual}/${CONFIG.SEMANAS_NO_ANO} 
+(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString("pt-br")})
 ${semanasRestantes} semanas restantes no ano
-      `;
-      const tabelaTreinos = await gerarTabelaTreinos();
-      const mensagemFinal = `\`\`\`
+`;
+}
+
+async function processarMensagem(mensagem, nomeUsuario) {
+  if (mensagem !== "!treino") return null;
+  try {
+    const mensagemAtleta = await inserirAtleta(nomeUsuario);
+    const cabecalho = montarCabecalhoSemana();
+    const tabelaTreinos = await gerarTabelaTreinos();
+    const mensagemFinal = `\`\`\`
 ${mensagemAtleta}
-${texto}
+${cabecalho}
 ${tabelaTreinos}
 \`\`\``;
-
-      console.log("Mensagem final:\n", mensagemFinal);
-      return mensagemFinal;
-    } catch (error) {
-      console.error("Erro ao processar a mensagem:", error);
-      return "Ocorreu um erro ao processar sua solicitação.";
-    }
+    log.info("processarMensagem", "Mensagem final gerada.");
+    return mensagemFinal;
+  } catch (error) {
+    log.error("processarMensagem", "Erro ao processar a mensagem:", error?.message || error);
+    return "Ocorreu um erro ao processar sua solicitação.";
   }
 }
 
 async function processarMensagemSemAtualizar(mensagem, nomeUsuario) {
-  const semanaAtual = getSemanaAtual();
-  const semanasNoAno = 52;
-  const semanasRestantes = semanasNoAno - semanaAtual;
-  if (mensagem === "!status") {
-    try {
-      const { segunda, domingo } = getSegundaEDomingoDaSemanaAtual();
-      const texto = `
-Projeto semana ${semanaAtual}/${semanasNoAno} 
-(${segunda.toLocaleDateString("pt-br")} - ${domingo.toLocaleDateString(
-        "pt-br"
-      )})
-${semanasRestantes} semanas restantes no ano
-`;
-
-      const tabelaTreinos = await gerarTabelaTreinos();
-      const mensagemFinal = `\`\`\`
-      ${texto}
-      ${tabelaTreinos}
-      \`\`\``;
-      console.log("Mensagem final:\n", mensagemFinal);
-      return mensagemFinal;
-    } catch (error) {
-      console.error("Erro ao processar a mensagem:", error);
-      return "Ocorreu um erro ao processar sua solicitação.";
-    }
+  if (mensagem !== "!status") return null;
+  try {
+    const cabecalho = montarCabecalhoSemana();
+    const tabelaTreinos = await gerarTabelaTreinos();
+    const mensagemFinal = `\`\`\`
+${cabecalho}
+${tabelaTreinos}
+\`\`\``;
+    log.info("processarMensagemSemAtualizar", "Mensagem final gerada.");
+    return mensagemFinal;
+  } catch (error) {
+    log.error("processarMensagemSemAtualizar", "Erro ao processar a mensagem:", error?.message || error);
+    return "Ocorreu um erro ao processar sua solicitação.";
   }
 }
 
@@ -393,8 +470,7 @@ function getSemanaAtual() {
   const inicioDoAno = new Date(hoje.getFullYear(), 0, 1);
   const diff = hoje - inicioDoAno;
   const umaSemanaEmMilissegundos = 1000 * 60 * 60 * 24 * 7;
-  const semana = Math.floor(diff / umaSemanaEmMilissegundos) + 1;
-  return semana;
+  return Math.floor(diff / umaSemanaEmMilissegundos) + 1;
 }
 
 function getSegundaEDomingoDaSemanaAtual() {
@@ -416,32 +492,29 @@ async function getNomeUsuario(numero) {
     const chat = await client.getChatById(numero);
     return chat ? chat.name : "Nome do usuário não encontrado";
   } catch (error) {
-    console.error("Erro ao obter nome do usuário:", error);
+    log.error("getNomeUsuario", "Erro ao obter nome do usuário:", error?.message || error);
     return "Nome do usuário não encontrado";
   }
 }
 
 const gerarTabelaTreinos = async () => {
-  const semanasNoAno = 52;
   try {
-    let tabela = "Tabela de Treinos:\n";
     const atletasRef = collection(db, "atletas2026");
     const snapshot = await getDocs(atletasRef);
 
     const atletas = [];
-
-    snapshot.forEach((doc) => {
-      const data = doc.data();
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
       if (data && data.nome) {
         atletas.push({
           nome: data.nome,
           treinos: data.treinos || 0,
           progresso: data.progresso || 0,
-          meta: data.meta || 5,
+          meta: data.meta || CONFIG.META_PADRAO,
           progressoSemanal: data.progressoSemanal || 0,
         });
       } else {
-        console.warn(`Dados incompletos para o documento: ${doc.id}`);
+        log.warn("gerarTabelaTreinos", `Dados incompletos para o documento: ${docSnap.id}`);
       }
     });
 
@@ -449,80 +522,57 @@ const gerarTabelaTreinos = async () => {
       throw new Error("Nenhum atleta encontrado ou dados incompletos.");
     }
 
-    // Ordena os atletas pelo progresso semanal e depois pela quantidade de treinos
     atletas.sort((a, b) => {
       if (b.progressoSemanal !== a.progressoSemanal) {
         return b.progressoSemanal - a.progressoSemanal;
-      } else {
-        return b.treinos - a.treinos;
       }
+      return b.treinos - a.treinos;
     });
 
-    // Calcula o comprimento máximo de nome e treinos para formatação
-    const maxNomeLength = Math.max(
-      ...atletas.map((atleta) => {
-        if (!atleta.nome) {
-          console.error("Nome do atleta está indefinido:", atleta);
-          throw new Error("Nome do atleta está indefinido.");
-        }
-        return atleta.nome.length;
-      })
-    );
-    console.log(maxNomeLength);
+    const maxNomeLength = Math.max(...atletas.map((a) => a.nome.length));
 
-    atletas.forEach((atleta, index) => {
-      const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${semanasNoAno}`;
-
-      let linha = `${atleta.nome.padEnd(maxNomeLength)} ${String(
-        atleta.treinos
-      ).padStart(1)}`;
-
-      // Define o emoji da medalha de acordo com a posição e adiciona ao final da linha
-      if (index === 0) {
-        linha += ` ${progressoTexto} 🥇\n`;
-      } else if (index === 1) {
-        linha += ` ${progressoTexto} 🥈\n`;
-      } else if (index === 2) {
-        linha += ` ${progressoTexto} 🥉\n`;
-      } else {
-        linha += ` ${progressoTexto}\n`;
-      }
-
-      tabela += linha;
+    const MEDALHAS = ["🥇", "🥈", "🥉"];
+    const linhas = atletas.map((atleta, index) => {
+      const progressoTexto = `${atleta.progresso}/${atleta.meta} - ${atleta.progressoSemanal}/${CONFIG.SEMANAS_NO_ANO}`;
+      const medalha = MEDALHAS[index] ? ` ${MEDALHAS[index]}` : "";
+      return `${atleta.nome.padEnd(maxNomeLength)} ${String(atleta.treinos)} ${progressoTexto}${medalha}`;
     });
 
-    return tabela;
+    return `Tabela de Treinos:\n${linhas.join("\n")}\n`;
   } catch (error) {
-    console.error("Erro ao gerar tabela de treinos:", error);
+    log.error("gerarTabelaTreinos", "Erro ao gerar tabela de treinos:", error?.message || error);
     return "Erro ao gerar tabela de treinos.";
   }
 };
 
 const obterRespostaGPT = async (pergunta) => {
+  if (!openai) {
+    return "Comando indisponível: OPENAI_API_KEY não configurada.";
+  }
   try {
-    console.log(`[obterRespostaGPT] Enviando pergunta ao ChatGPT: "${pergunta}"`);
+    log.info("obterRespostaGPT", `Enviando pergunta ao ChatGPT: "${pergunta}"`);
     const resposta = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: CONFIG.GPT_MODEL,
       messages: [
         {
           role: "user",
-          content: `Responda com no máximo 300 caracteres: ${pergunta}`,
+          content: `Responda com no máximo ${CONFIG.GPT_MAX_CHARS} caracteres: ${pergunta}`,
         },
       ],
-      max_tokens: 100,
+      max_tokens: CONFIG.GPT_MAX_TOKENS,
     });
 
     let mensagem = resposta.choices[0].message.content.trim();
-    console.log(`[obterRespostaGPT] Resposta recebida (${mensagem.length} caracteres): "${mensagem.substring(0, 100)}..."`);
+    log.info("obterRespostaGPT", `Resposta recebida (${mensagem.length} caracteres).`);
 
-    if (mensagem.length > 300) {
-      console.log(`[obterRespostaGPT] Resposta excedia 300 caracteres, truncando...`);
-      mensagem = mensagem.substring(0, 297) + "...";
+    if (mensagem.length > CONFIG.GPT_MAX_CHARS) {
+      log.info("obterRespostaGPT", "Resposta excedia limite, truncando...");
+      mensagem = `${mensagem.substring(0, CONFIG.GPT_MAX_CHARS - 3)}...`;
     }
 
     return mensagem;
   } catch (error) {
-    console.error("Erro ao chamar ChatGPT:", error);
+    log.error("obterRespostaGPT", "Erro ao chamar ChatGPT:", error?.message || error);
     return "Desculpe, não consegui processar sua pergunta no momento.";
   }
 };
