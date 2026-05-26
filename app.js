@@ -4,6 +4,7 @@ require('dotenv').config({ quiet: true });
 
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcodeTerminal = require("qrcode-terminal");
 const { OpenAI } = require("openai");
@@ -135,6 +136,58 @@ function scheduleReinitialize(reason, delayMs) {
   }, wait);
 }
 
+/**
+ * Remove arquivos de lock do Chromium e mata o processo que estiver segurando
+ * o userDataDir (caso o Node tenha sido reiniciado e o navegador anterior
+ * ficou órfão). Resolve o erro: "The browser is already running for ...".
+ */
+function cleanupBrowserLock() {
+  try {
+    const sessionDir = path.join(CONFIG.AUTH_DATA_PATH, "session");
+    if (!fs.existsSync(sessionDir)) return;
+
+    const lockFiles = ["SingletonLock", "SingletonCookie", "SingletonSocket"];
+
+    for (const name of lockFiles) {
+      const lockPath = path.join(sessionDir, name);
+      let target = null;
+      try {
+        target = fs.readlinkSync(lockPath); // ex: "hostname-12345"
+      } catch (_) {
+        // não é symlink ou não existe
+      }
+
+      if (target && name === "SingletonLock") {
+        const match = /-(\d+)$/.exec(target);
+        const pid = match ? Number(match[1]) : NaN;
+        if (Number.isInteger(pid) && pid > 0) {
+          try {
+            process.kill(pid, "SIGKILL");
+            log.warn("Cleanup", `Processo chromium órfão (pid=${pid}) finalizado.`);
+          } catch (e) {
+            if (e && e.code !== "ESRCH") {
+              log.warn("Cleanup", `Falha ao matar pid=${pid}:`, e?.message || e);
+            }
+          }
+        }
+      }
+
+      try {
+        if (fs.existsSync(lockPath) || target) {
+          fs.unlinkSync(lockPath);
+          log.info("Cleanup", `Lock removido: ${name}`);
+        }
+      } catch (e) {
+        if (e && e.code !== "ENOENT") {
+          log.warn("Cleanup", `Não foi possível remover ${name}:`, e?.message || e);
+        }
+      }
+    }
+  } catch (error) {
+    log.warn("Cleanup", "Erro inesperado durante cleanupBrowserLock:", error?.message || error);
+  }
+}
+
 async function initializeClient() {
   if (isInitializing) {
     log.info("Init", "Inicialização já em andamento. Ignorando chamada duplicada.");
@@ -143,11 +196,17 @@ async function initializeClient() {
   isInitializing = true;
   log.info("Init", `Inicializando cliente WhatsApp (tentativa #${reconnectAttempt + (reconnectAttempt === 0 ? 1 : 0)})...`);
   try {
+    cleanupBrowserLock();
     await client.initialize();
     log.ok("Init", "client.initialize() retornou. Aguardando eventos de autenticação/ready.");
     reconnectAttempt = 0;
   } catch (error) {
-    log.error("Init", "Falha ao inicializar cliente:", error?.message || error);
+    const msg = error?.message || String(error);
+    log.error("Init", "Falha ao inicializar cliente:", msg);
+    if (/browser is already running/i.test(msg)) {
+      log.warn("Init", "Detectado lock de navegador. Executando cleanup adicional antes do retry.");
+      cleanupBrowserLock();
+    }
     scheduleReinitialize("falha_initialize");
   } finally {
     isInitializing = false;
@@ -242,8 +301,65 @@ async function safeReply(msg, content, contexto) {
   }
 }
 
-async function handleTreino(msg) {
+const CATCHUP_FETCH_LIMIT = 100;
+
+/**
+ * Identifica o handler correspondente a uma mensagem (sem executá-lo).
+ */
+function findCommandEntry(body) {
+  if (!body) return null;
+  return COMMAND_HANDLERS.find((c) => c.match(body)) || null;
+}
+
+/**
+ * Ao receber um !treino, varre o histórico do grupo desde a última mensagem
+ * do próprio bot e reprocessa quaisquer comandos que tenham ficado sem
+ * resposta (ex.: o bot estava offline). Processa em ordem cronológica e
+ * pula a própria mensagem que disparou o catch-up (ela será tratada a
+ * seguir, no fluxo normal).
+ */
+async function catchUpMissedCommands(currentMsg) {
+  try {
+    const chat = await currentMsg.getChat();
+    const fetched = await chat.fetchMessages({ limit: CATCHUP_FETCH_LIMIT });
+
+    // Coleta candidatos do mais novo para o mais antigo, parando na
+    // primeira mensagem enviada pelo próprio bot.
+    const candidatos = [];
+    for (let i = fetched.length - 1; i >= 0; i--) {
+      const m = fetched[i];
+      if (m.fromMe) break;
+      if (m.id?._serialized === currentMsg.id?._serialized) continue;
+      const entry = findCommandEntry(m.body);
+      if (entry) candidatos.push({ m, entry });
+    }
+
+    if (candidatos.length === 0) {
+      log.info("CatchUp", "Nenhum comando pendente desde a última resposta do bot.");
+      return;
+    }
+
+    // Reprocessa em ordem cronológica (mais antigo primeiro).
+    candidatos.reverse();
+    log.info("CatchUp", `Reprocessando ${candidatos.length} comando(s) pendente(s).`);
+    for (const { m, entry } of candidatos) {
+      try {
+        log.info("CatchUp", `→ Reprocessando ${entry.label} (id=${m.id?._serialized})`);
+        await entry.handler(m, { skipCatchUp: true });
+      } catch (error) {
+        log.error("CatchUp", `Falha ao reprocessar ${entry.label}:`, error?.message || error);
+      }
+    }
+  } catch (error) {
+    log.warn("CatchUp", "Não foi possível executar o catch-up:", error?.message || error);
+  }
+}
+
+async function handleTreino(msg, opts = {}) {
   log.info("Handler", "Comando !treino detectado");
+  if (!opts.skipCatchUp) {
+    await catchUpMissedCommands(msg);
+  }
   const nomeUsuario = await getNomeUsuario(msg.author);
   log.info("Handler", `Usuário: ${nomeUsuario}`);
   const retorno = await processarMensagem("!treino", nomeUsuario);
