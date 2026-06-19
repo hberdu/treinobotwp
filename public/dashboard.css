@@ -270,22 +270,21 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   line-height: .92;
   margin: 0 0 1.5rem;
   font-weight: 700;
-  letter-spacing: -.04em;
+  letter-spacing: -.025em;
 }
-.hero-title .line { display: block; overflow: hidden; }
-.hero-title .line .char { display: inline-block; will-change: transform; }
-.hero-title .hl,
-.hero-title .hl .char {
+.hero-title .line { display: block; overflow: hidden; padding: 0 .04em .08em; }
+.hero-title .line .char {
+  display: inline-block;
+  will-change: transform;
+  /* evita corte por overflow:hidden em letras com descida (j, g, ç) */
+  padding-bottom: .04em;
+}
+.hero-title .hl {
   background: linear-gradient(120deg, var(--c-lime) 0%, var(--c-cyan) 50%, var(--c-magenta) 100%);
-  background-size: 200% auto;
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: hueShift 8s linear infinite;
   font-style: italic;
-}
-@keyframes hueShift {
-  to { background-position: 200% center; }
 }
 .hero-meta {
   display: flex; align-items: center; gap: .75rem;
