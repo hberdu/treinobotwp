@@ -888,19 +888,12 @@ function renderAthlete() {
   // hero
   const nameEl = $("#athleteName");
   nameEl.textContent = name;
-  delete nameEl.dataset.split; // força re-split
   if (window.gsap) {
-    // anima o nome do atleta char por char
     nameEl.style.overflow = "hidden";
-    const wrapper = document.createElement("span");
-    wrapper.className = "line";
-    wrapper.style.display = "inline-block";
-    while (nameEl.firstChild) wrapper.appendChild(nameEl.firstChild);
-    nameEl.appendChild(wrapper);
-    const chars = splitNodeChars(wrapper);
-    gsap.fromTo(chars,
+    gsap.killTweensOf(nameEl);
+    gsap.fromTo(nameEl,
       { yPercent: 110, opacity: 0 },
-      { yPercent: 0, opacity: 1, duration: .9, ease: "expo.out", stagger: .03 }
+      { yPercent: 0, opacity: 1, duration: 1, ease: "expo.out" }
     );
   }
   const ordenados = [...state.atletas].sort((a, b) => {
