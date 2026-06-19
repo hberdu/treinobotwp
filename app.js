@@ -67,6 +67,7 @@ const log = Object.freeze({
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 app.get("/healthz", (_req, res) => {
   res.json({
     status: "ok",
@@ -75,6 +76,131 @@ app.get("/healthz", (_req, res) => {
     reconnectAttempt,
     timestamp: ts(),
   });
+});
+
+// ============================================
+// DASHBOARD API
+// ============================================
+const DASHBOARD_TOKEN = process.env.DASHBOARD_TOKEN || null;
+
+function dashboardAuth(req, res, next) {
+  if (!DASHBOARD_TOKEN) return next();
+  const provided = req.query.token || req.headers["x-dashboard-token"];
+  if (provided !== DASHBOARD_TOKEN) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  next();
+}
+
+function toISO(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate().toISOString();
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (typeof value === "number") return new Date(value).toISOString();
+  if (value.seconds) return new Date(value.seconds * 1000).toISOString();
+  return null;
+}
+
+app.get("/api/atletas", dashboardAuth, async (_req, res) => {
+  try {
+    const snapshot = await getDocs(collection(db, "atletas2026"));
+    const atletas = [];
+    snapshot.forEach((d) => {
+      const data = d.data() || {};
+      atletas.push({
+        id: d.id,
+        nome: data.nome || d.id,
+        treinos: Number(data.treinos || 0),
+        progresso: Number(data.progresso || 0),
+        progressoSemanal: Number(data.progressoSemanal || 0),
+        meta: Number(data.meta || CONFIG.META_PADRAO),
+      });
+    });
+    res.json({ atletas });
+  } catch (error) {
+    log.error("API/atletas", error?.message || error);
+    res.status(500).json({ error: "failed_to_load_atletas" });
+  }
+});
+
+app.get("/api/treinos", dashboardAuth, async (req, res) => {
+  try {
+    const snapshot = await getDocs(collection(db, "data-treino"));
+    const since = req.query.since ? new Date(req.query.since) : null;
+    const until = req.query.until ? new Date(req.query.until) : null;
+    const nomeFiltro = req.query.nome ? String(req.query.nome) : null;
+
+    const treinos = [];
+    snapshot.forEach((d) => {
+      const data = d.data() || {};
+      const isoDate = toISO(data["data-treino"]);
+      if (!isoDate) return;
+      const nome = data.nome || null;
+      if (!nome) return;
+      if (nomeFiltro && nome !== nomeFiltro) return;
+      const dt = new Date(isoDate);
+      if (since && dt < since) return;
+      if (until && dt > until) return;
+      treinos.push({ id: d.id, nome, data: isoDate });
+    });
+
+    treinos.sort((a, b) => new Date(a.data) - new Date(b.data));
+    res.json({ treinos, total: treinos.length });
+  } catch (error) {
+    log.error("API/treinos", error?.message || error);
+    res.status(500).json({ error: "failed_to_load_treinos" });
+  }
+});
+
+app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
+  try {
+    const [atletasSnap, treinosSnap] = await Promise.all([
+      getDocs(collection(db, "atletas2026")),
+      getDocs(collection(db, "data-treino")),
+    ]);
+
+    const atletas = [];
+    atletasSnap.forEach((d) => {
+      const data = d.data() || {};
+      atletas.push({
+        id: d.id,
+        nome: data.nome || d.id,
+        treinos: Number(data.treinos || 0),
+        progresso: Number(data.progresso || 0),
+        progressoSemanal: Number(data.progressoSemanal || 0),
+        meta: Number(data.meta || CONFIG.META_PADRAO),
+      });
+    });
+
+    const treinos = [];
+    treinosSnap.forEach((d) => {
+      const data = d.data() || {};
+      const iso = toISO(data["data-treino"]);
+      const nome = data.nome || null;
+      if (!iso || !nome) return;
+      treinos.push({ id: d.id, nome, data: iso });
+    });
+    treinos.sort((a, b) => new Date(a.data) - new Date(b.data));
+
+    res.json({
+      atletas,
+      treinos,
+      meta: CONFIG.META_PADRAO,
+      semanasNoAno: CONFIG.SEMANAS_NO_ANO,
+      generatedAt: ts(),
+    });
+  } catch (error) {
+    log.error("API/dashboard", error?.message || error);
+    res.status(500).json({ error: "failed_to_load_dashboard" });
+  }
+});
+
+app.get("/dashboard", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
 
 // ============================================

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Treinos · TreinoBot</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>Dashboard de Treinos</h1>
+    </div>
+    <div class="actions">
+      <span id="lastUpdate" class="muted">—</span>
+      <button id="refreshBtn" class="btn">Atualizar</button>
+    </div>
+  </header>
+
+  <section class="filters">
+    <div class="field">
+      <label for="atletaSelect">Atleta</label>
+      <select id="atletaSelect">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="dateFrom">De</label>
+      <input type="date" id="dateFrom" />
+    </div>
+    <div class="field">
+      <label for="dateTo">Até</label>
+      <input type="date" id="dateTo" />
+    </div>
+    <div class="field">
+      <label for="rangePreset">Período</label>
+      <select id="rangePreset">
+        <option value="all">Tudo</option>
+        <option value="7">Últimos 7 dias</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="year">Ano atual</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi"><span class="kpi-label">Atletas ativos</span><span id="kpiAtletas" class="kpi-value">—</span></div>
+    <div class="kpi"><span class="kpi-label">Treinos no período</span><span id="kpiTreinos" class="kpi-value">—</span></div>
+    <div class="kpi"><span class="kpi-label">Média por atleta</span><span id="kpiMedia" class="kpi-value">—</span></div>
+    <div class="kpi"><span class="kpi-label">Treinos hoje</span><span id="kpiHoje" class="kpi-value">—</span></div>
+  </section>
+
+  <main class="grid">
+    <div class="card span-2">
+      <h2>Ranking — Total de treinos por atleta</h2>
+      <canvas id="chartRanking"></canvas>
+    </div>
+
+    <div class="card span-2">
+      <h2>Evolução semanal de treinos</h2>
+      <canvas id="chartSemanal"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Distribuição por dia da semana</h2>
+      <canvas id="chartDiaSemana"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Progresso vs Meta</h2>
+      <canvas id="chartProgresso"></canvas>
+    </div>
+
+    <div class="card span-2">
+      <h2>Tabela de Atletas</h2>
+      <div class="table-wrap">
+        <table id="atletasTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Atleta</th>
+              <th>Treinos</th>
+              <th>Progresso</th>
+              <th>Meta</th>
+              <th>Semanal</th>
+              <th>% Meta</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer class="muted">
+    <small>Fonte: Firestore · coleções <code>atletas2026</code> e <code>data-treino</code></small>
+  </footer>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
