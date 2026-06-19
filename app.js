@@ -200,6 +200,23 @@ app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
   }
 });
 
+app.post("/api/treino", dashboardAuth, async (req, res) => {
+  try {
+    const nome = (req.body && req.body.nome ? String(req.body.nome) : "").trim();
+    if (!nome) return res.status(400).json({ error: "nome_required" });
+
+    const ref = doc(db, "atletas2026", nome);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return res.status(404).json({ error: "atleta_nao_encontrado" });
+
+    const message = await inserirAtleta(nome);
+    res.json({ ok: true, message });
+  } catch (error) {
+    log.error("API/treino", error?.message || error);
+    res.status(500).json({ error: "failed_to_register" });
+  }
+});
+
 app.get("/dashboard", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
