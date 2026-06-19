@@ -233,6 +233,9 @@ function bindCrossHighlight() {
     canvas.addEventListener("mouseleave", () => { lastIdx = -1; clearHighlight(); });
   });
 }
+
+// ===================== CHART HELPER =====================
+function upsertChart(id, config) {
   const ctx = document.getElementById(id);
   if (!ctx) return;
   if (state.charts[id]) state.charts[id].destroy();
