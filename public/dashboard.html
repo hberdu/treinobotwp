@@ -3,69 +3,100 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Treinos — painel</title>
+  <title>treinos · 2026</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 </head>
 <body>
+  <!-- background art -->
+  <div class="bg-noise" aria-hidden="true"></div>
   <div class="bg-grid" aria-hidden="true"></div>
-  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb o1"></span>
+    <span class="orb o2"></span>
+    <span class="orb o3"></span>
+  </div>
 
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo-mark">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h3l3-8 4 16 3-8h3"/></svg>
-      </span>
-      <div class="brand-text">
-        <h1>treinos<span class="dot-accent">.</span></h1>
-        <span class="brand-sub">painel de progresso</span>
+  <!-- cursor follower -->
+  <div class="cursor" aria-hidden="true">
+    <span class="cursor-dot"></span>
+    <span class="cursor-ring"></span>
+  </div>
+
+  <!-- ticker -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <div class="marquee-inner" id="marqueeInner">
+        <span>treinos · 2026</span><span class="m-sep">★</span>
+        <span>constância &gt; volume</span><span class="m-sep">★</span>
+        <span>uma semana de cada vez</span><span class="m-sep">★</span>
+        <span>cada treino conta</span><span class="m-sep">★</span>
+        <span>powered by firebase</span><span class="m-sep">★</span>
       </div>
     </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand" data-magnet>
+      <span class="logo-mark">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h3l3-8 4 16 3-8h3"/></svg>
+      </span>
+      <div class="brand-text">
+        <span class="brand-name">treinos</span>
+        <span class="brand-sub mono">2026 · live</span>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-view="overview" role="tab">
+        <span class="tab-num mono">01</span><span>Geral</span>
+      </button>
+      <button class="tab" data-view="register" role="tab">
+        <span class="tab-num mono">02</span><span>Registrar</span>
+      </button>
+      <button class="tab" data-view="athlete" role="tab">
+        <span class="tab-num mono">03</span><span>Atleta</span>
+      </button>
+    </nav>
     <div class="actions">
       <span id="lastUpdate" class="muted mono">—</span>
-      <button id="refreshBtn" class="btn-ghost" title="Atualizar" aria-label="Atualizar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><polyline points="21 4 21 10 15 10"></polyline></svg>
+      <button id="refreshBtn" class="btn-ghost" title="Atualizar" aria-label="Atualizar" data-magnet>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><polyline points="21 4 21 10 15 10"></polyline></svg>
       </button>
     </div>
   </header>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab is-active" data-view="overview" role="tab">
-      <span class="tab-num mono">01</span> Visão geral
-    </button>
-    <button class="tab" data-view="register" role="tab">
-      <span class="tab-num mono">02</span> Registrar
-    </button>
-    <button class="tab" data-view="athlete" role="tab">
-      <span class="tab-num mono">03</span> Atleta
-    </button>
-  </nav>
-
-  <!-- ================ OVERVIEW ================ -->
+  <!-- ===================== OVERVIEW ===================== -->
   <section id="view-overview" class="view is-active">
-    <section class="hero reveal">
-      <div class="hero-eyebrow mono">visão geral · semana atual</div>
-      <h2 class="hero-title">
-        Cada treino conta.<br>
-        <span class="accent">Resultados</span> contam mais.
-      </h2>
-      <p class="hero-sub">Acompanhe a constância da equipe em tempo real. Atletas no topo são os que <strong>cumprem a meta semanal</strong> com mais regularidade.</p>
+    <section class="hero">
+      <span class="hero-eyebrow mono">// painel · ao vivo</span>
+      <h1 class="hero-title" data-split>
+        <span class="line">A constância,</span>
+        <span class="line"><span class="hl">visualizada.</span></span>
+      </h1>
+      <div class="hero-meta mono">
+        <span>↘</span>
+        <span><span id="heroAtletas">0</span> atletas</span>
+        <span class="dot-sep">·</span>
+        <span><span id="heroTreinos">0</span> treinos</span>
+        <span class="dot-sep">·</span>
+        <span><span id="heroSemana">0</span> esta semana</span>
+      </div>
     </section>
 
-    <section class="filters reveal">
+    <section class="filters">
       <div class="field">
         <label for="rangePreset">Período</label>
         <select id="rangePreset">
           <option value="all">Tudo</option>
-          <option value="7">Últimos 7 dias</option>
-          <option value="30" selected>Últimos 30 dias</option>
-          <option value="90">Últimos 90 dias</option>
-          <option value="year">Ano atual</option>
+          <option value="7">7 dias</option>
+          <option value="30" selected>30 dias</option>
+          <option value="90">90 dias</option>
+          <option value="year">Ano</option>
         </select>
       </div>
       <div class="field">
@@ -78,81 +109,71 @@
       </div>
     </section>
 
-    <section class="kpis reveal">
-      <div class="kpi">
-        <span class="kpi-label">Atletas</span>
+    <section class="kpis">
+      <div class="kpi card-tilt" data-tilt>
+        <div class="brackets"></div>
+        <span class="kpi-label mono">atletas</span>
         <span class="kpi-value counter" data-target="0" id="kpiAtletas">0</span>
-        <span class="kpi-spark">na temporada</span>
       </div>
-      <div class="kpi">
-        <span class="kpi-label">Treinos no período</span>
+      <div class="kpi card-tilt" data-tilt>
+        <div class="brackets"></div>
+        <span class="kpi-label mono">treinos</span>
         <span class="kpi-value counter" data-target="0" id="kpiTreinos">0</span>
-        <span class="kpi-spark">somatório</span>
       </div>
-      <div class="kpi">
-        <span class="kpi-label">Média por atleta</span>
+      <div class="kpi card-tilt" data-tilt>
+        <div class="brackets"></div>
+        <span class="kpi-label mono">média/atleta</span>
         <span class="kpi-value counter" data-target="0" data-decimals="1" id="kpiMedia">0</span>
-        <span class="kpi-spark">treinos / atleta</span>
       </div>
-      <div class="kpi accent-kpi">
-        <span class="kpi-label">Hoje</span>
+      <div class="kpi card-tilt accent-kpi" data-tilt>
+        <div class="brackets"></div>
+        <span class="kpi-label mono">hoje</span>
         <span class="kpi-value counter" data-target="0" id="kpiHoje">0</span>
-        <span class="kpi-spark">treinos registrados</span>
       </div>
     </section>
 
     <main class="grid">
-      <div class="card span-2 reveal">
+      <div class="card span-2 card-tilt" data-tilt>
+        <div class="brackets"></div>
         <header class="card-head">
-          <div>
-            <h3>Ranking de treinos</h3>
-            <p class="card-explain">Top 15 atletas com <strong>mais treinos no período</strong> selecionado. Use o filtro acima para comparar fases (semana / mês / ano).</p>
-          </div>
-          <span class="card-tag mono">bar · horizontal</span>
+          <h3>ranking</h3>
+          <span class="card-tag mono">top 15 · período</span>
         </header>
         <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
 
-      <div class="card span-2 reveal">
+      <div class="card span-2 card-tilt" data-tilt>
+        <div class="brackets"></div>
         <header class="card-head">
-          <div>
-            <h3>Evolução semanal</h3>
-            <p class="card-explain">Quantos treinos a equipe inteira fez por semana. Picos indicam períodos de alta consistência. <strong>Passe o mouse</strong> para ver a semana exata.</p>
-          </div>
-          <span class="card-tag mono">line · area</span>
+          <h3>evolução semanal</h3>
+          <span class="card-tag mono">soma do grupo</span>
         </header>
         <div class="chart-box"><canvas id="chartSemanal"></canvas></div>
       </div>
 
-      <div class="card reveal">
+      <div class="card card-tilt" data-tilt>
+        <div class="brackets"></div>
         <header class="card-head">
-          <div>
-            <h3>Dias da semana</h3>
-            <p class="card-explain">Distribuição de treinos entre <strong>domingo e sábado</strong>. Mostra os dias preferidos do grupo.</p>
-          </div>
-          <span class="card-tag mono">bar</span>
+          <h3>dias preferidos</h3>
+          <span class="card-tag mono">dom→sáb</span>
         </header>
         <div class="chart-box"><canvas id="chartDiaSemana"></canvas></div>
       </div>
 
-      <div class="card reveal">
+      <div class="card card-tilt" data-tilt>
+        <div class="brackets"></div>
         <header class="card-head">
-          <div>
-            <h3>Progresso vs meta</h3>
-            <p class="card-explain">Quanto cada atleta <strong>concluiu da meta semanal</strong>. Verde indica meta batida.</p>
-          </div>
-          <span class="card-tag mono">stacked</span>
+          <h3>meta semanal</h3>
+          <span class="card-tag mono">% concluído</span>
         </header>
         <div class="chart-box"><canvas id="chartProgresso"></canvas></div>
       </div>
 
-      <div class="card span-2 reveal">
+      <div class="card span-2 card-tilt" data-tilt>
+        <div class="brackets"></div>
         <header class="card-head">
-          <div>
-            <h3>Classificação geral</h3>
-            <p class="card-explain">Ordenada por <strong>semanas com meta batida</strong> (constância), com desempate por treinos totais. Clique em "Ver" para abrir o perfil do atleta.</p>
-          </div>
-          <span class="card-tag mono">ranking</span>
+          <h3>classificação</h3>
+          <span class="card-tag mono">semanas com meta batida → desempate por treinos</span>
         </header>
         <div class="table-wrap">
           <table id="atletasTable">
@@ -163,8 +184,8 @@
                 <th class="num">Treinos</th>
                 <th class="num">Semana</th>
                 <th class="num">Meta</th>
-                <th class="num">Sem. cumpridas</th>
-                <th>% Meta</th>
+                <th class="num">Sem✓</th>
+                <th>Meta %</th>
                 <th></th>
               </tr>
             </thead>
@@ -175,171 +196,204 @@
     </main>
   </section>
 
-  <!-- ================ REGISTER ================ -->
+  <!-- ===================== REGISTER ===================== -->
   <section id="view-register" class="view">
-    <section class="hero reveal">
-      <div class="hero-eyebrow mono">registrar treino · &nbsp;atalho</div>
-      <h2 class="hero-title">Marque um treino<br><span class="accent">em segundos</span>.</h2>
-      <p class="hero-sub">Selecione o atleta e confirme. O contador semanal, total e ranking se atualizam <strong>imediatamente</strong>. Use o <span class="kbd">!treino</span> no grupo para o mesmo efeito.</p>
+    <section class="hero">
+      <span class="hero-eyebrow mono">// novo treino</span>
+      <h1 class="hero-title" data-split>
+        <span class="line">+1 treino,</span>
+        <span class="line"><span class="hl">2 segundos.</span></span>
+      </h1>
     </section>
 
-    <section class="register-card card reveal">
-      <header class="card-head">
-        <div>
-          <h3>Novo treino</h3>
-          <p class="card-explain">Equivalente a digitar <span class="kbd">!treino</span> no WhatsApp em nome do atleta selecionado.</p>
-        </div>
-        <span class="card-tag mono">POST /api/treino</span>
-      </header>
+    <section class="register-wrap">
+      <div class="card register-card card-tilt" data-tilt>
+        <div class="brackets"></div>
+        <header class="card-head">
+          <h3>registrar</h3>
+          <span class="card-tag mono">POST · /api/treino</span>
+        </header>
 
-      <form id="registerForm" class="register-form">
-        <div class="field grow">
-          <label for="registerAthlete">Atleta</label>
-          <input
-            type="search"
-            id="registerAthlete"
-            placeholder="Digite ou selecione..."
-            autocomplete="off"
-            list="athleteOptions"
-            required
-          />
-        </div>
-        <button type="submit" class="btn-primary" id="registerBtn">
-          <span class="btn-label">Registrar treino</span>
-          <span class="btn-loader" hidden></span>
-        </button>
-      </form>
+        <form id="registerForm" class="register-form">
+          <div class="field grow">
+            <label for="registerAthlete">Atleta</label>
+            <input
+              type="search"
+              id="registerAthlete"
+              placeholder="digite o nome..."
+              autocomplete="off"
+              list="athleteOptions"
+              required
+            />
+          </div>
+          <button type="submit" class="btn-primary" id="registerBtn" data-magnet>
+            <span class="btn-label">+1 treino</span>
+            <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <span class="btn-loader" hidden></span>
+          </button>
+        </form>
 
-      <div id="registerFeedback" class="feedback" hidden></div>
+        <div id="registerFeedback" class="feedback" hidden></div>
+      </div>
+
+      <aside class="register-aside">
+        <p class="aside-quote">
+          <span class="quote-mark">"</span>
+          o resultado<br>
+          é o <em>somatório</em><br>
+          da constância.
+        </p>
+        <p class="aside-tip mono">// equivale a <span class="kbd">!treino</span> no grupo</p>
+      </aside>
     </section>
   </section>
 
-  <!-- ================ ATHLETE ================ -->
+  <!-- ===================== ATHLETE ===================== -->
   <section id="view-athlete" class="view">
-    <section class="hero reveal">
-      <div class="hero-eyebrow mono">perfil individual</div>
-      <h2 class="hero-title">Histórico de <span class="accent">cada atleta</span>.</h2>
-      <p class="hero-sub">Sequência, calendário, padrão semanal e mensal. Tudo o que precisa para entender a constância de quem você procura.</p>
+    <section class="hero">
+      <span class="hero-eyebrow mono">// perfil individual</span>
+      <h1 class="hero-title" data-split>
+        <span class="line">cada atleta,</span>
+        <span class="line"><span class="hl">sua história.</span></span>
+      </h1>
     </section>
 
-    <section class="filters athlete-filters reveal">
+    <section class="filters athlete-filters">
       <div class="field grow">
-        <label for="athleteSearch">Buscar atleta</label>
+        <label for="athleteSearch">Buscar</label>
         <input
           type="search"
           id="athleteSearch"
-          placeholder="Digite o nome..."
+          placeholder="digite o nome..."
           autocomplete="off"
           list="athleteOptions"
         />
       </div>
       <div class="field">
-        <label for="athleteRange">Período</label>
+        <label for="athleteRange">Janela</label>
         <select id="athleteRange">
           <option value="30">30 dias</option>
           <option value="90" selected>90 dias</option>
           <option value="180">180 dias</option>
-          <option value="year">Ano atual</option>
+          <option value="year">Ano</option>
           <option value="all">Tudo</option>
         </select>
       </div>
     </section>
 
-    <div id="athleteEmpty" class="empty-state reveal">
-      <p>Selecione um atleta acima para visualizar o histórico individual.</p>
+    <div id="athleteEmpty" class="empty-state">
+      <p>↑ busque um atleta para começar</p>
     </div>
 
     <div id="athleteContent" class="athlete-content" hidden>
-      <header class="athlete-hero card reveal">
-        <div class="avatar" id="athleteAvatar">—</div>
-        <div class="athlete-meta">
-          <h2 id="athleteName">—</h2>
-          <span class="athlete-rank" id="athleteRank">—</span>
-        </div>
-        <div class="athlete-progress-ring">
-          <svg viewBox="0 0 120 120" width="100" height="100">
-            <circle cx="60" cy="60" r="52" class="ring-bg"></circle>
-            <circle cx="60" cy="60" r="52" class="ring-fg" id="athleteRingFg"></circle>
-          </svg>
-          <div class="ring-label">
-            <strong id="athleteRingPct">—</strong>
-            <span>da meta</span>
+
+      <!-- Big name + ring + KPIs in same hero -->
+      <section class="athlete-hero">
+        <div class="ahero-left">
+          <span class="ahero-rank mono" id="athleteRank">—</span>
+          <h2 class="ahero-name" id="athleteName">—</h2>
+          <div class="ahero-streak">
+            <div class="streak-fire" id="streakFire">🔥</div>
+            <div>
+              <span class="streak-num" id="aKpiStreak">0</span>
+              <span class="streak-label">dias seguidos · </span>
+              <span class="streak-last" id="aKpiUltimo">—</span>
+            </div>
           </div>
         </div>
-      </header>
 
-      <section class="kpis reveal">
-        <div class="kpi">
-          <span class="kpi-label">Treinos totais</span>
-          <span id="aKpiTotal" class="kpi-value counter" data-target="0">0</span>
-        </div>
-        <div class="kpi">
-          <span class="kpi-label">No período</span>
-          <span id="aKpiPeriodo" class="kpi-value counter" data-target="0">0</span>
-        </div>
-        <div class="kpi">
-          <span class="kpi-label">Sequência</span>
-          <span id="aKpiStreak" class="kpi-value counter" data-target="0">0</span>
-          <span class="kpi-spark">dias seguidos</span>
-        </div>
-        <div class="kpi">
-          <span class="kpi-label">Último treino</span>
-          <span id="aKpiUltimo" class="kpi-value sm">—</span>
+        <div class="ahero-right">
+          <div class="athlete-progress-ring">
+            <svg viewBox="0 0 140 140" width="160" height="160">
+              <defs>
+                <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="currentColor" stop-opacity="1"/>
+                  <stop offset="100%" stop-color="currentColor" stop-opacity=".6"/>
+                </linearGradient>
+              </defs>
+              <circle cx="70" cy="70" r="60" class="ring-bg"></circle>
+              <circle cx="70" cy="70" r="60" class="ring-fg" id="athleteRingFg" stroke="url(#ringGrad)"></circle>
+            </svg>
+            <div class="ring-label">
+              <strong id="athleteRingPct">—</strong>
+              <span>meta</span>
+            </div>
+          </div>
+          <div class="ahero-counts">
+            <div>
+              <span class="c-num counter" id="aKpiTotal" data-target="0">0</span>
+              <span class="c-label mono">total</span>
+            </div>
+            <div>
+              <span class="c-num counter" id="aKpiPeriodo" data-target="0">0</span>
+              <span class="c-label mono">no período</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      <main class="grid">
-        <div class="card span-2 reveal">
-          <header class="card-head">
-            <div>
-              <h3>Frequência semanal</h3>
-              <p class="card-explain">Treinos por semana. Barras <strong>verdes</strong> indicam semanas em que a meta foi <strong>batida ou superada</strong>.</p>
-            </div>
-            <span class="card-tag mono">bar</span>
-          </header>
-          <div class="chart-box"><canvas id="aChartSemanal"></canvas></div>
-        </div>
-
-        <div class="card reveal">
-          <header class="card-head">
-            <div>
-              <h3>Dias da semana</h3>
-              <p class="card-explain">Identifica os <strong>dias preferidos</strong> deste atleta para treinar.</p>
-            </div>
-            <span class="card-tag mono">polar</span>
-          </header>
-          <div class="chart-box"><canvas id="aChartDiaSemana"></canvas></div>
-        </div>
-
-        <div class="card reveal">
-          <header class="card-head">
-            <div>
-              <h3>Por mês</h3>
-              <p class="card-explain">Visão de <strong>longo prazo</strong>. Suba de patamar mês a mês.</p>
-            </div>
-            <span class="card-tag mono">line</span>
-          </header>
-          <div class="chart-box"><canvas id="aChartMensal"></canvas></div>
-        </div>
-
-        <div class="card span-2 reveal">
-          <header class="card-head">
-            <div>
-              <h3>Calendário de atividade</h3>
-              <p class="card-explain">Últimas 26 semanas. Quanto mais <strong>intenso o quadradinho</strong>, mais treinos naquele dia. <strong>Passe o mouse</strong> em cada célula.</p>
-            </div>
-            <span class="card-tag mono">heatmap</span>
-          </header>
-          <div id="aHeatmap" class="heatmap"></div>
+      <!-- Heatmap protagonist -->
+      <section class="card heatmap-card card-tilt" data-tilt>
+        <div class="brackets"></div>
+        <header class="card-head">
+          <div>
+            <h3>26 semanas</h3>
+            <span class="card-tag mono" id="heatmapTotal">— treinos · — dias ativos</span>
+          </div>
+          <span class="card-tag mono">heatmap · hover</span>
+        </header>
+        <div id="aHeatmap" class="heatmap"></div>
+        <div class="heatmap-foot">
+          <span class="hm-months mono" id="hmMonths"></span>
           <div class="heatmap-legend">
-            <span>menos</span>
+            <span class="mono">menos</span>
             <span class="hm-sq h0"></span>
             <span class="hm-sq h1"></span>
             <span class="hm-sq h2"></span>
             <span class="hm-sq h3"></span>
             <span class="hm-sq h4"></span>
-            <span>mais</span>
+            <span class="mono">mais</span>
           </div>
+        </div>
+      </section>
+
+      <!-- Week breakdown -->
+      <section class="card weeks-card">
+        <div class="brackets"></div>
+        <header class="card-head">
+          <h3>quebra semanal</h3>
+          <span class="card-tag mono">últimas 12 semanas · hover destaca no heatmap</span>
+        </header>
+        <ul class="weeks-list" id="weeksList"></ul>
+      </section>
+
+      <!-- Compact charts row -->
+      <main class="grid athlete-grid">
+        <div class="card card-tilt" data-tilt>
+          <div class="brackets"></div>
+          <header class="card-head">
+            <h3>frequência</h3>
+            <span class="card-tag mono">verde · meta batida</span>
+          </header>
+          <div class="chart-box"><canvas id="aChartSemanal"></canvas></div>
+        </div>
+
+        <div class="card card-tilt" data-tilt>
+          <div class="brackets"></div>
+          <header class="card-head">
+            <h3>dias da semana</h3>
+            <span class="card-tag mono">padrão</span>
+          </header>
+          <div class="chart-box"><canvas id="aChartDiaSemana"></canvas></div>
+        </div>
+
+        <div class="card span-2 card-tilt" data-tilt>
+          <div class="brackets"></div>
+          <header class="card-head">
+            <h3>longo prazo</h3>
+            <span class="card-tag mono">treinos · por mês</span>
+          </header>
+          <div class="chart-box"><canvas id="aChartMensal"></canvas></div>
         </div>
       </main>
     </div>
@@ -348,7 +402,7 @@
   <datalist id="athleteOptions"></datalist>
 
   <footer class="muted">
-    <small>Atualização automática a cada 5 min · feito com firebase + chart.js + gsap</small>
+    <small class="mono">refresh · 5 min · firebase + chart.js + gsap</small>
   </footer>
 
   <div id="toast" class="toast" hidden></div>
