@@ -291,18 +291,22 @@ function animateHeroChars(view) {
   if (!window.gsap || !view) return;
   const titles = view.querySelectorAll(".hero-title");
   titles.forEach((t) => {
-    let chars = $$(".char", t);
-    if (!chars.length) chars = splitChars(t);
-    if (!chars.length) return;
-    gsap.killTweensOf(chars);
-    gsap.fromTo(chars,
+    const lines = $$(".line", t);
+    if (!lines.length) return;
+    // garante overflow hidden para o efeito reveal
+    lines.forEach((l) => {
+      l.style.overflow = "hidden";
+      l.style.display = "block";
+    });
+    gsap.killTweensOf(lines);
+    gsap.fromTo(lines,
       { yPercent: 110, opacity: 0 },
       {
         yPercent: 0,
         opacity: 1,
-        duration: 1,
+        duration: 1.1,
         ease: "expo.out",
-        stagger: { each: .025, from: "start" },
+        stagger: .12,
       }
     );
   });
