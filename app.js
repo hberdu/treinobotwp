@@ -82,6 +82,7 @@ app.get("/healthz", (_req, res) => {
 // DASHBOARD API
 // ============================================
 const DASHBOARD_TOKEN = process.env.DASHBOARD_TOKEN || null;
+const DASHBOARD_PUBLIC_URL = process.env.DASHBOARD_PUBLIC_URL || "http://191.252.102.34:4020/dashboard";
 
 function dashboardAuth(req, res, next) {
   if (!DASHBOARD_TOKEN) return next();
@@ -517,9 +518,19 @@ async function handlePergunta(msg) {
   await safeReply(msg, resposta, "pergunta");
 }
 
+async function handleDashboard(msg) {
+  log.info("Handler", "Comando !dashboard detectado");
+  const url = DASHBOARD_TOKEN
+    ? `${DASHBOARD_PUBLIC_URL}?token=${DASHBOARD_TOKEN}`
+    : DASHBOARD_PUBLIC_URL;
+  const texto = `📊 *Dashboard de Treinos*\nAcompanhe ranking, progresso e evolução semanal:\n${url}`;
+  await safeReply(msg, texto, "!dashboard");
+}
+
 const COMMAND_HANDLERS = [
   { match: (body) => body.startsWith("!treino"), handler: handleTreino, label: "!treino" },
   { match: (body) => body.startsWith("!status"), handler: handleStatus, label: "!status" },
+  { match: (body) => body.startsWith("!dashboard") || body.startsWith("!painel"), handler: handleDashboard, label: "!dashboard" },
   { match: (body) => body.startsWith("!pergunta ") || body.startsWith("!p "), handler: handlePergunta, label: "!pergunta" },
 ];
 

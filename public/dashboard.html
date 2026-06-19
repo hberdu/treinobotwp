@@ -3,101 +3,223 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard de Treinos · TreinoBot</title>
+  <title>Dashboard de Treinos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dashboard.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="dot"></span>
-      <h1>Dashboard de Treinos</h1>
+      <span class="logo-mark"></span>
+      <div class="brand-text">
+        <h1>Treinos</h1>
+        <span class="brand-sub">painel de progresso</span>
+      </div>
     </div>
     <div class="actions">
       <span id="lastUpdate" class="muted">—</span>
-      <button id="refreshBtn" class="btn">Atualizar</button>
+      <button id="refreshBtn" class="btn-ghost" title="Atualizar" aria-label="Atualizar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><polyline points="21 4 21 10 15 10"></polyline></svg>
+      </button>
     </div>
   </header>
 
-  <section class="filters">
-    <div class="field">
-      <label for="atletaSelect">Atleta</label>
-      <select id="atletaSelect">
-        <option value="">Todos</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="dateFrom">De</label>
-      <input type="date" id="dateFrom" />
-    </div>
-    <div class="field">
-      <label for="dateTo">Até</label>
-      <input type="date" id="dateTo" />
-    </div>
-    <div class="field">
-      <label for="rangePreset">Período</label>
-      <select id="rangePreset">
-        <option value="all">Tudo</option>
-        <option value="7">Últimos 7 dias</option>
-        <option value="30" selected>Últimos 30 dias</option>
-        <option value="90">Últimos 90 dias</option>
-        <option value="year">Ano atual</option>
-      </select>
-    </div>
-  </section>
+  <nav class="tabs" role="tablist">
+    <button class="tab is-active" data-view="overview" role="tab">Visão geral</button>
+    <button class="tab" data-view="athlete" role="tab">Atleta</button>
+  </nav>
 
-  <section class="kpis">
-    <div class="kpi"><span class="kpi-label">Atletas ativos</span><span id="kpiAtletas" class="kpi-value">—</span></div>
-    <div class="kpi"><span class="kpi-label">Treinos no período</span><span id="kpiTreinos" class="kpi-value">—</span></div>
-    <div class="kpi"><span class="kpi-label">Média por atleta</span><span id="kpiMedia" class="kpi-value">—</span></div>
-    <div class="kpi"><span class="kpi-label">Treinos hoje</span><span id="kpiHoje" class="kpi-value">—</span></div>
-  </section>
-
-  <main class="grid">
-    <div class="card span-2">
-      <h2>Ranking — Total de treinos por atleta</h2>
-      <canvas id="chartRanking"></canvas>
-    </div>
-
-    <div class="card span-2">
-      <h2>Evolução semanal de treinos</h2>
-      <canvas id="chartSemanal"></canvas>
-    </div>
-
-    <div class="card">
-      <h2>Distribuição por dia da semana</h2>
-      <canvas id="chartDiaSemana"></canvas>
-    </div>
-
-    <div class="card">
-      <h2>Progresso vs Meta</h2>
-      <canvas id="chartProgresso"></canvas>
-    </div>
-
-    <div class="card span-2">
-      <h2>Tabela de Atletas</h2>
-      <div class="table-wrap">
-        <table id="atletasTable">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Atleta</th>
-              <th>Treinos</th>
-              <th>Progresso</th>
-              <th>Meta</th>
-              <th>Semanal</th>
-              <th>% Meta</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+  <section id="view-overview" class="view is-active">
+    <section class="filters">
+      <div class="field">
+        <label for="rangePreset">Período</label>
+        <select id="rangePreset">
+          <option value="all">Tudo</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30" selected>Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="year">Ano atual</option>
+        </select>
       </div>
+      <div class="field">
+        <label for="dateFrom">De</label>
+        <input type="date" id="dateFrom" />
+      </div>
+      <div class="field">
+        <label for="dateTo">Até</label>
+        <input type="date" id="dateTo" />
+      </div>
+    </section>
+
+    <section class="kpis">
+      <div class="kpi">
+        <span class="kpi-label">Atletas</span>
+        <span id="kpiAtletas" class="kpi-value">—</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Treinos no período</span>
+        <span id="kpiTreinos" class="kpi-value">—</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Média por atleta</span>
+        <span id="kpiMedia" class="kpi-value">—</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Hoje</span>
+        <span id="kpiHoje" class="kpi-value">—</span>
+      </div>
+    </section>
+
+    <main class="grid">
+      <div class="card span-2">
+        <h2>Ranking de treinos</h2>
+        <div class="chart-box"><canvas id="chartRanking"></canvas></div>
+      </div>
+
+      <div class="card span-2">
+        <h2>Evolução semanal</h2>
+        <div class="chart-box"><canvas id="chartSemanal"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Dias da semana</h2>
+        <div class="chart-box"><canvas id="chartDiaSemana"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Progresso vs meta</h2>
+        <div class="chart-box"><canvas id="chartProgresso"></canvas></div>
+      </div>
+
+      <div class="card span-2">
+        <h2>Atletas</h2>
+        <div class="table-wrap">
+          <table id="atletasTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Atleta</th>
+                <th class="num">Treinos</th>
+                <th class="num">Progresso</th>
+                <th class="num">Meta</th>
+                <th class="num">Semanal</th>
+                <th>% Meta</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <section id="view-athlete" class="view">
+    <section class="filters athlete-filters">
+      <div class="field grow">
+        <label for="athleteSearch">Buscar atleta</label>
+        <input
+          type="search"
+          id="athleteSearch"
+          placeholder="Digite o nome..."
+          autocomplete="off"
+          list="athleteOptions"
+        />
+        <datalist id="athleteOptions"></datalist>
+      </div>
+      <div class="field">
+        <label for="athleteRange">Período</label>
+        <select id="athleteRange">
+          <option value="30">30 dias</option>
+          <option value="90" selected>90 dias</option>
+          <option value="180">180 dias</option>
+          <option value="year">Ano atual</option>
+          <option value="all">Tudo</option>
+        </select>
+      </div>
+    </section>
+
+    <div id="athleteEmpty" class="empty-state">
+      <p>Selecione um atleta para visualizar o histórico individual.</p>
     </div>
-  </main>
+
+    <div id="athleteContent" class="athlete-content" hidden>
+      <header class="athlete-hero card">
+        <div class="avatar" id="athleteAvatar">—</div>
+        <div class="athlete-meta">
+          <h2 id="athleteName">—</h2>
+          <span class="athlete-rank" id="athleteRank">—</span>
+        </div>
+        <div class="athlete-progress-ring">
+          <svg viewBox="0 0 120 120" width="92" height="92">
+            <circle cx="60" cy="60" r="52" class="ring-bg"></circle>
+            <circle cx="60" cy="60" r="52" class="ring-fg" id="athleteRingFg"></circle>
+          </svg>
+          <div class="ring-label">
+            <strong id="athleteRingPct">—</strong>
+            <span>da meta</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="kpis">
+        <div class="kpi">
+          <span class="kpi-label">Treinos totais</span>
+          <span id="aKpiTotal" class="kpi-value">—</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">No período</span>
+          <span id="aKpiPeriodo" class="kpi-value">—</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Sequência atual</span>
+          <span id="aKpiStreak" class="kpi-value">—</span>
+          <span class="kpi-sub">dias seguidos</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Último treino</span>
+          <span id="aKpiUltimo" class="kpi-value sm">—</span>
+        </div>
+      </section>
+
+      <main class="grid">
+        <div class="card span-2">
+          <h2>Frequência semanal</h2>
+          <div class="chart-box"><canvas id="aChartSemanal"></canvas></div>
+        </div>
+
+        <div class="card">
+          <h2>Dias da semana</h2>
+          <div class="chart-box"><canvas id="aChartDiaSemana"></canvas></div>
+        </div>
+
+        <div class="card">
+          <h2>Por mês</h2>
+          <div class="chart-box"><canvas id="aChartMensal"></canvas></div>
+        </div>
+
+        <div class="card span-2">
+          <h2>Calendário de atividade</h2>
+          <div id="aHeatmap" class="heatmap"></div>
+          <div class="heatmap-legend">
+            <span>menos</span>
+            <span class="hm-sq h0"></span>
+            <span class="hm-sq h1"></span>
+            <span class="hm-sq h2"></span>
+            <span class="hm-sq h3"></span>
+            <span class="hm-sq h4"></span>
+            <span>mais</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </section>
 
   <footer class="muted">
-    <small>Fonte: Firestore · coleções <code>atletas2026</code> e <code>data-treino</code></small>
+    <small>Atualização automática a cada 5 min</small>
   </footer>
 
   <script src="dashboard.js"></script>
