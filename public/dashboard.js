@@ -245,37 +245,75 @@ function animateCounter(el, target, decimals = 0) {
 }
 
 // ===================== SPLIT TEXT (chars stagger) =====================
-function splitChars(el) {
-  if (el.dataset.split === "done") return;
-  $$(".line", el).forEach((line) => {
-    const text = line.textContent;
-    line.textContent = "";
-    const wrap = document.createElement("span");
-    wrap.className = "wrap-inline";
-    [...text].forEach((ch) => {
-      const span = document.createElement("span");
-      span.className = "char";
-      span.textContent = ch === " " ? "\u00A0" : ch;
-      // preserve highlight if inside hl
-      wrap.appendChild(span);
+function splitNodeChars(node) {
+  // Substitui text nodes por <span class="char"> mantendo a estrutura
+  const chars = [];
+  const walk = (n) => {
+    Array.from(n.childNodes).forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent;
+        const frag = document.createDocumentFragment();
+        [...text].forEach((ch) => {
+          const span = document.createElement("span");
+          span.className = "char";
+          span.textContent = ch === " " ? "\u00A0" : ch;
+          span.style.display = "inline-block";
+          span.style.willChange = "transform, opacity";
+          frag.appendChild(span);
+          chars.push(span);
+        });
+        n.replaceChild(frag, child);
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        // mantém o wrapper (ex: .hl com gradiente) e quebra dentro dele
+        walk(child);
+      }
     });
-    line.appendChild(wrap);
+  };
+  walk(node);
+  return chars;
+}
+
+function splitChars(el) {
+  if (el.dataset.split === "done") return [];
+  const allChars = [];
+  $$(".line", el).forEach((line) => {
+    // garante overflow hidden para o efeito reveal
+    line.style.overflow = "hidden";
+    line.style.display = "block";
+    const chars = splitNodeChars(line);
+    allChars.push(...chars);
   });
   el.dataset.split = "done";
+  return allChars;
 }
+
 function animateHeroChars(view) {
-  if (!window.gsap) return;
+  if (!window.gsap || !view) return;
   const titles = view.querySelectorAll(".hero-title");
   titles.forEach((t) => {
-    splitChars(t);
-    const chars = t.querySelectorAll(".char");
+    let chars = $$(".char", t);
+    if (!chars.length) chars = splitChars(t);
+    if (!chars.length) return;
+    gsap.killTweensOf(chars);
     gsap.fromTo(chars,
-      { y: "110%", opacity: 0 },
-      { y: "0%", opacity: 1, duration: .9, ease: "expo.out", stagger: .025 }
+      { yPercent: 110, opacity: 0 },
+      {
+        yPercent: 0,
+        opacity: 1,
+        duration: 1,
+        ease: "expo.out",
+        stagger: { each: .025, from: "start" },
+      }
     );
   });
-  const subs = view.querySelectorAll(".hero-meta, .hero-eyebrow, .aside-quote, .aside-tip");
-  if (subs.length) gsap.fromTo(subs, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: .6, ease: "power3.out", stagger: .08, delay: .3 });
+  const subs = view.querySelectorAll(".hero-eyebrow, .hero-meta, .hero-sub, .aside-quote, .aside-tip");
+  if (subs.length) {
+    gsap.killTweensOf(subs);
+    gsap.fromTo(subs,
+      { y: 16, opacity: 0 },
+      { y: 0, opacity: 1, duration: .65, ease: "power3.out", stagger: .08, delay: .3 }
+    );
+  }
 }
 
 // ===================== CURSOR FOLLOWER =====================
@@ -844,7 +882,23 @@ function renderAthlete() {
   view.style.setProperty("--athlete-color", color);
 
   // hero
-  $("#athleteName").textContent = name;
+  const nameEl = $("#athleteName");
+  nameEl.textContent = name;
+  delete nameEl.dataset.split; // força re-split
+  if (window.gsap) {
+    // anima o nome do atleta char por char
+    nameEl.style.overflow = "hidden";
+    const wrapper = document.createElement("span");
+    wrapper.className = "line";
+    wrapper.style.display = "inline-block";
+    while (nameEl.firstChild) wrapper.appendChild(nameEl.firstChild);
+    nameEl.appendChild(wrapper);
+    const chars = splitNodeChars(wrapper);
+    gsap.fromTo(chars,
+      { yPercent: 110, opacity: 0 },
+      { yPercent: 0, opacity: 1, duration: .9, ease: "expo.out", stagger: .03 }
+    );
+  }
   const ordenados = [...state.atletas].sort((a, b) => {
     if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
     return b.treinos - a.treinos;
@@ -1074,8 +1128,8 @@ function showWeekToast(iso) {
   if (window.gsap) {
     gsap.killTweensOf(toast);
     gsap.fromTo(toast,
-      { opacity: 0, y: -40, scale: .94, xPercent: -50 },
-      { opacity: 1, y: 0, scale: 1, xPercent: -50, duration: .5, ease: "back.out(1.6)" }
+      { opacity: 0, y: -40, scale: .94 },
+      { opacity: 1, y: 0, scale: 1, duration: .5, ease: "back.out(1.6)" }
     );
     gsap.from(row.children, {
       y: 14, opacity: 0,
@@ -1119,7 +1173,7 @@ function closeWeekToast(skipAnim) {
     return;
   }
   gsap.to(toast, {
-    opacity: 0, y: -40, scale: .94, xPercent: -50, duration: .35, ease: "power2.in",
+    opacity: 0, y: -40, scale: .94, duration: .35, ease: "power2.in",
     onComplete: () => {
       toast.hidden = true;
       gsap.set(toast, { clearProps: "all" });

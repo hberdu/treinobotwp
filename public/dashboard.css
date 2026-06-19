@@ -1065,21 +1065,24 @@ tbody tr:last-child td { border-bottom: 0; }
    ============================================================ */
 .week-toast {
   position: fixed;
-  top: 96px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 300;
+  top: 88px;
+  left: 1rem;
+  right: 1rem;
+  margin-inline: auto;
+  z-index: 9999;
   width: min(640px, calc(100vw - 2rem));
+  max-width: 100%;
   background: linear-gradient(160deg, color-mix(in oklab, var(--athlete-color) 8%, var(--surface)), var(--surface) 65%);
   border: 1px solid color-mix(in oklab, var(--athlete-color) 35%, var(--border-strong));
   border-radius: 16px;
   padding: 1.25rem 1.4rem 1rem;
-  box-shadow: 0 30px 80px -20px rgba(0,0,0,.6),
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,.7),
               0 0 0 1px rgba(255,255,255,.02) inset;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   overflow: hidden;
+  will-change: transform, opacity;
 }
 .week-toast::before {
   content: "";
