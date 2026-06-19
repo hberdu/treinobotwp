@@ -50,9 +50,7 @@ body {
   font-feature-settings: "cv02","cv03","cv11","ss01";
   min-height: 100vh;
   overflow-x: hidden;
-  cursor: none;
 }
-@media (pointer: coarse) { body { cursor: auto; } .cursor { display: none; } }
 
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 .display { font-family: "Space Grotesk", "Inter", sans-serif; }
@@ -89,69 +87,7 @@ body {
 .orb.o3 { width: 600px; height: 600px; bottom: -260px; left: 30%;
   background: radial-gradient(circle, var(--c-lime), transparent 60%); }
 
-body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs):not(.cursor) { position: relative; z-index: 1; }
-
-/* ============================================================
-   CURSOR FOLLOWER
-   ============================================================ */
-.cursor {
-  position: fixed;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 9999;
-  mix-blend-mode: difference;
-  transform: translate3d(-50%, -50%, 0);
-}
-.cursor-dot {
-  position: absolute;
-  top: 0; left: 0;
-  width: 6px; height: 6px;
-  margin: -3px;
-  background: #fff;
-  border-radius: 50%;
-}
-.cursor-ring {
-  position: absolute;
-  top: 0; left: 0;
-  width: 36px; height: 36px;
-  margin: -18px;
-  border: 1.5px solid rgba(255,255,255,.6);
-  border-radius: 50%;
-  transition: transform var(--t-med), border-color var(--t-fast);
-}
-.cursor.hover .cursor-ring {
-  transform: scale(2);
-  border-color: var(--accent);
-}
-
-/* ============================================================
-   MARQUEE
-   ============================================================ */
-.marquee {
-  background: var(--bg-deep);
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-  height: 32px;
-  display: flex;
-  align-items: center;
-}
-.marquee-track {
-  display: flex;
-  width: max-content;
-  white-space: nowrap;
-}
-.marquee-inner {
-  display: flex;
-  align-items: center;
-  gap: 1.8rem;
-  padding-right: 1.8rem;
-  font-family: "JetBrains Mono", monospace;
-  font-size: .72rem;
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: .2em;
-}
-.marquee-inner .m-sep { color: var(--accent); }
+body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index: 1; }
 
 /* ============================================================
    TOPBAR
@@ -530,9 +466,18 @@ th {
   letter-spacing: .14em;
   font-weight: 500;
 }
-tbody tr { transition: background var(--t-fast); }
+tbody tr {
+  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+  position: relative;
+}
 tbody tr:hover { background: var(--surface-2); }
+tbody tr.is-highlighted {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--athlete-color) 14%, transparent), transparent 80%);
+  box-shadow: inset 4px 0 0 var(--athlete-color);
+}
+tbody tr.is-highlighted .athlete-swatch { transform: scaleY(1.4); }
 tbody tr:last-child td { border-bottom: 0; }
+.athlete-swatch { transition: transform var(--t-med); }
 
 .athlete-cell {
   display: flex; align-items: center; gap: .7rem;
@@ -797,25 +742,64 @@ tbody tr:last-child td { border-bottom: 0; }
 .heatmap-card {
   margin: 1rem 2rem 0;
 }
+.hm-months {
+  display: flex;
+  font-size: .68rem;
+  color: var(--text-soft);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding-left: 36px; /* aligns with cells start */
+  margin: .5rem 0 .25rem;
+  overflow: hidden;
+}
+.hm-months span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.heatmap-wrap {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 6px;
+  align-items: start;
+  overflow-x: auto;
+}
+.hm-days {
+  display: grid;
+  grid-template-rows: repeat(7, 16px);
+  gap: 4px;
+  font-size: .65rem;
+  color: var(--text-soft);
+  letter-spacing: .08em;
+  text-transform: lowercase;
+}
+.hm-days span {
+  height: 16px;
+  line-height: 16px;
+}
 .heatmap {
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(7, 16px);
   gap: 4px;
-  padding: 1rem 0 .5rem;
-  overflow-x: auto;
 }
 .heatmap .cell {
   width: 16px; height: 16px;
   border-radius: 3.5px;
   background: var(--surface-2);
-  transition: transform var(--t-fast), filter var(--t-fast), box-shadow var(--t-fast);
+  transition: transform var(--t-fast), filter var(--t-fast), box-shadow var(--t-fast), outline-color var(--t-fast);
+  cursor: pointer;
+  outline: 1.5px solid transparent;
+  outline-offset: 1px;
 }
 .heatmap .cell:hover {
-  transform: scale(1.7);
+  transform: scale(1.6);
   filter: brightness(1.25);
-  z-index: 2; position: relative;
+  z-index: 3; position: relative;
   box-shadow: 0 6px 16px -4px color-mix(in oklab, var(--athlete-color) 55%, transparent);
+}
+.heatmap .cell.is-today {
+  outline-color: var(--athlete-color);
 }
 .heatmap .cell.l1 { background: color-mix(in oklab, var(--athlete-color) 22%, transparent); }
 .heatmap .cell.l2 { background: color-mix(in oklab, var(--athlete-color) 45%, transparent); }
@@ -830,23 +814,45 @@ tbody tr:last-child td { border-bottom: 0; }
   z-index: 1; position: relative;
 }
 
-.heatmap-foot {
-  display: flex; align-items: center; justify-content: space-between;
+.hm-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: .5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
 }
-.hm-months {
-  display: flex; gap: 1.6rem;
+.hm-stat {
+  display: flex; flex-direction: column;
+  gap: .25rem;
+}
+.hm-stat-label {
+  font-size: .62rem;
   color: var(--text-soft);
-  font-size: .7rem;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
   text-transform: uppercase;
 }
+.hm-stat strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.hm-stat em {
+  font-style: normal;
+  font-size: .72rem;
+  color: var(--text-soft);
+}
+
 .heatmap-legend {
   display: flex; align-items: center; gap: 5px;
-  font-size: .68rem;
+  font-size: .65rem;
   color: var(--text-soft);
+  margin-top: 1rem;
+  justify-content: flex-end;
 }
 .hm-sq {
   width: 12px; height: 12px; border-radius: 2px; display: inline-block;
@@ -856,6 +862,58 @@ tbody tr:last-child td { border-bottom: 0; }
 .hm-sq.h2 { background: color-mix(in oklab, var(--athlete-color) 45%, transparent); }
 .hm-sq.h3 { background: color-mix(in oklab, var(--athlete-color) 72%, transparent); }
 .hm-sq.h4 { background: var(--athlete-color); }
+
+/* floating tooltip */
+.hm-tooltip {
+  position: fixed;
+  z-index: 200;
+  background: #060608;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: .55rem .75rem;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  pointer-events: none;
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,.6);
+  transform: translate(-50%, -100%) translateY(-12px);
+}
+.hm-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px; height: 8px;
+  background: #060608;
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+.hmt-date {
+  font-size: .65rem;
+  color: var(--text-soft);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.hmt-count {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.02em;
+}
+.hmt-count .hmt-meta {
+  font-size: .7rem;
+  color: var(--text-soft);
+  font-weight: 400;
+  margin-left: .25rem;
+}
+.hmt-rel {
+  font-size: .65rem;
+  color: var(--athlete-color);
+  letter-spacing: .1em;
+}
 
 /* weeks breakdown */
 .weeks-card { margin: 1rem 2rem 0; }
@@ -963,8 +1021,6 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   .ahero-counts > div { border-left: 0; padding-left: 0; }
 }
 @media (max-width: 700px) {
-  body { cursor: auto; }
-  .cursor { display: none; }
   .hero { padding: 2rem 1rem 1rem; }
   .topbar { padding: 1rem; }
   .filters, .kpis, .grid { padding-left: 1rem; padding-right: 1rem; }

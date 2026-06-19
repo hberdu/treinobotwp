@@ -22,25 +22,6 @@
     <span class="orb o3"></span>
   </div>
 
-  <!-- cursor follower -->
-  <div class="cursor" aria-hidden="true">
-    <span class="cursor-dot"></span>
-    <span class="cursor-ring"></span>
-  </div>
-
-  <!-- ticker -->
-  <div class="marquee" aria-hidden="true">
-    <div class="marquee-track">
-      <div class="marquee-inner" id="marqueeInner">
-        <span>treinos · 2026</span><span class="m-sep">★</span>
-        <span>constância &gt; volume</span><span class="m-sep">★</span>
-        <span>uma semana de cada vez</span><span class="m-sep">★</span>
-        <span>cada treino conta</span><span class="m-sep">★</span>
-        <span>powered by firebase</span><span class="m-sep">★</span>
-      </div>
-    </div>
-  </div>
-
   <header class="topbar">
     <div class="brand" data-magnet>
       <span class="logo-mark">
@@ -333,29 +314,81 @@
       </section>
 
       <!-- Heatmap protagonist -->
-      <section class="card heatmap-card card-tilt" data-tilt>
+      <section class="card heatmap-card">
         <div class="brackets"></div>
         <header class="card-head">
           <div>
-            <h3>26 semanas</h3>
-            <span class="card-tag mono" id="heatmapTotal">— treinos · — dias ativos</span>
+            <h3>26 semanas de constância</h3>
+            <span class="card-tag mono">cada quadrado = 1 dia · cor = treinos no dia</span>
           </div>
-          <span class="card-tag mono">heatmap · hover</span>
+          <span class="card-tag mono" id="heatmapPeriod">—</span>
         </header>
-        <div id="aHeatmap" class="heatmap"></div>
-        <div class="heatmap-foot">
-          <span class="hm-months mono" id="hmMonths"></span>
-          <div class="heatmap-legend">
-            <span class="mono">menos</span>
-            <span class="hm-sq h0"></span>
-            <span class="hm-sq h1"></span>
-            <span class="hm-sq h2"></span>
-            <span class="hm-sq h3"></span>
-            <span class="hm-sq h4"></span>
-            <span class="mono">mais</span>
+
+        <div class="hm-months mono" id="hmMonths"></div>
+
+        <div class="heatmap-wrap">
+          <div class="hm-days mono" aria-hidden="true">
+            <span></span>
+            <span>seg</span>
+            <span></span>
+            <span>qua</span>
+            <span></span>
+            <span>sex</span>
+            <span></span>
+          </div>
+          <div id="aHeatmap" class="heatmap"></div>
+        </div>
+
+        <div class="hm-stats">
+          <div class="hm-stat">
+            <span class="hm-stat-label mono">total</span>
+            <strong id="hmTotal">0</strong>
+            <em>treinos</em>
+          </div>
+          <div class="hm-stat">
+            <span class="hm-stat-label mono">dias ativos</span>
+            <strong id="hmActiveDays">0</strong>
+            <em>de 182</em>
+          </div>
+          <div class="hm-stat">
+            <span class="hm-stat-label mono">melhor semana</span>
+            <strong id="hmBestWeek">—</strong>
+            <em id="hmBestWeekCount">—</em>
+          </div>
+          <div class="hm-stat">
+            <span class="hm-stat-label mono">sequência máxima</span>
+            <strong id="hmLongestStreak">0</strong>
+            <em>dias seguidos</em>
+          </div>
+          <div class="hm-stat">
+            <span class="hm-stat-label mono">dia favorito</span>
+            <strong id="hmFavDay">—</strong>
+            <em id="hmFavDayCount">—</em>
+          </div>
+          <div class="hm-stat">
+            <span class="hm-stat-label mono">média/semana</span>
+            <strong id="hmAvgWeek">0</strong>
+            <em>treinos</em>
           </div>
         </div>
+
+        <div class="heatmap-legend">
+          <span class="mono">menos</span>
+          <span class="hm-sq h0"></span>
+          <span class="hm-sq h1"></span>
+          <span class="hm-sq h2"></span>
+          <span class="hm-sq h3"></span>
+          <span class="hm-sq h4"></span>
+          <span class="mono">mais</span>
+        </div>
       </section>
+
+      <!-- Floating tooltip for heatmap -->
+      <div id="hmTooltip" class="hm-tooltip" hidden>
+        <span class="hmt-date mono"></span>
+        <span class="hmt-count"></span>
+        <span class="hmt-rel mono"></span>
+      </div>
 
       <!-- Week breakdown -->
       <section class="card weeks-card">

@@ -148,8 +148,111 @@ async function postTreino(nome) {
   return json;
 }
 
-// ===================== CHART HELPER =====================
-function upsertChart(id, config) {
+// ===================== CROSS HIGHLIGHT (chart ↔ table) =====================
+let lastHighlight = null;
+
+function pulseSwatch(tr) {
+  if (!window.gsap) return;
+  const sw = tr.querySelector(".athlete-swatch");
+  if (!sw) return;
+  gsap.fromTo(sw,
+    { scaleY: 1, scaleX: 1 },
+    { scaleY: 1.6, scaleX: 1.4, duration: .25, ease: "back.out(2.2)", yoyo: true, repeat: 1 }
+  );
+}
+
+function highlightAthlete(name) {
+  if (lastHighlight === name) return;
+  lastHighlight = name;
+
+  // tabela
+  let scrollRow = null;
+  $$("#atletasTable tbody tr").forEach((tr) => {
+    const cell = tr.querySelector(".athlete-name");
+    if (cell && cell.textContent === name) {
+      if (!tr.classList.contains("is-highlighted")) {
+        tr.classList.add("is-highlighted");
+        tr.style.setProperty("--athlete-color", colorFor(name));
+        pulseSwatch(tr);
+        if (window.gsap) {
+          gsap.fromTo(tr, { x: -6 }, { x: 0, duration: .4, ease: "power3.out" });
+        }
+        scrollRow = tr;
+      }
+    } else {
+      tr.classList.remove("is-highlighted");
+    }
+  });
+
+  if (scrollRow && typeof scrollRow.scrollIntoView === "function") {
+    const rect = scrollRow.getBoundingClientRect();
+    if (rect.top < 100 || rect.bottom > window.innerHeight - 40) {
+      scrollRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  // gráficos
+  ["chartRanking", "chartProgresso"].forEach((id) => {
+    const chart = state.charts[id];
+    if (!chart) return;
+    const idx = chart.data.labels.findIndex((l) => l === name);
+    if (idx >= 0) {
+      const elements = chart.data.datasets.map((_, dsIdx) => ({ datasetIndex: dsIdx, index: idx }));
+      chart.setActiveElements(elements);
+      chart.tooltip.setActiveElements([{ datasetIndex: 0, index: idx }], { x: 0, y: 0 });
+    } else {
+      chart.setActiveElements([]);
+      chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+    }
+    chart.update("none");
+  });
+}
+
+function clearHighlight() {
+  lastHighlight = null;
+  $$("#atletasTable tbody tr.is-highlighted").forEach((tr) => tr.classList.remove("is-highlighted"));
+  ["chartRanking", "chartProgresso"].forEach((id) => {
+    const chart = state.charts[id];
+    if (!chart) return;
+    chart.setActiveElements([]);
+    chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+    chart.update("none");
+  });
+}
+
+function bindCrossHighlight() {
+  // hover nas linhas
+  const tbody = $("#atletasTable tbody");
+  if (tbody && !tbody.dataset.xhBound) {
+    tbody.dataset.xhBound = "1";
+    tbody.addEventListener("mouseover", (e) => {
+      const tr = e.target.closest("tr");
+      if (!tr) return;
+      const cell = tr.querySelector(".athlete-name");
+      if (cell) highlightAthlete(cell.textContent);
+    });
+    tbody.addEventListener("mouseleave", clearHighlight);
+  }
+
+  // hover nos gráficos
+  ["chartRanking", "chartProgresso"].forEach((id) => {
+    const canvas = document.getElementById(id);
+    if (!canvas || canvas.dataset.xhBound) return;
+    canvas.dataset.xhBound = "1";
+    canvas.addEventListener("mousemove", (evt) => {
+      const chart = state.charts[id];
+      if (!chart) return;
+      const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: true }, false);
+      if (points.length) {
+        const name = chart.data.labels[points[0].index];
+        highlightAthlete(name);
+      } else {
+        clearHighlight();
+      }
+    });
+    canvas.addEventListener("mouseleave", clearHighlight);
+  });
+}
   const ctx = document.getElementById(id);
   if (!ctx) return;
   if (state.charts[id]) state.charts[id].destroy();
@@ -201,23 +304,7 @@ function animateHeroChars(view) {
 }
 
 // ===================== CURSOR FOLLOWER =====================
-function initCursor() {
-  if (!window.gsap || window.matchMedia("(pointer: coarse)").matches) return;
-  const cursor = $(".cursor");
-  if (!cursor) return;
-  const xTo = gsap.quickTo(cursor, "x", { duration: .25, ease: "power3" });
-  const yTo = gsap.quickTo(cursor, "y", { duration: .25, ease: "power3" });
-  window.addEventListener("mousemove", (e) => { xTo(e.clientX); yTo(e.clientY); });
-
-  // hover state on interactive elements
-  const hoverables = "a, button, .tab, .row-action, .field input, .field select, .weeks-list li, .heatmap .cell, .card, .kpi";
-  document.body.addEventListener("mouseover", (e) => {
-    if (e.target.closest(hoverables)) cursor.classList.add("hover");
-  }, true);
-  document.body.addEventListener("mouseout", (e) => {
-    if (e.target.closest(hoverables)) cursor.classList.remove("hover");
-  }, true);
-}
+// (removido — usando cursor nativo)
 
 // ===================== MAGNETIC BUTTONS =====================
 function bindMagnets() {
@@ -243,32 +330,23 @@ function bindTilts() {
   $$("[data-tilt]").forEach((el) => {
     if (el.dataset.tiltBound) return;
     el.dataset.tiltBound = "1";
-    el.style.perspective = "900px";
-    const inner = el;
+    el.style.perspective = "1200px";
     el.addEventListener("mousemove", (e) => {
       const r = el.getBoundingClientRect();
       const px = (e.clientX - r.left) / r.width;
       const py = (e.clientY - r.top) / r.height;
-      const rx = (py - .5) * -6;
-      const ry = (px - .5) * 6;
-      gsap.to(inner, { rotateX: rx, rotateY: ry, transformPerspective: 900, duration: .4, ease: "power3.out" });
+      const rx = (py - .5) * -2.2;
+      const ry = (px - .5) * 2.2;
+      gsap.to(el, { rotateX: rx, rotateY: ry, transformPerspective: 1200, duration: .55, ease: "power3.out" });
     });
     el.addEventListener("mouseleave", () => {
-      gsap.to(inner, { rotateX: 0, rotateY: 0, duration: .8, ease: "elastic.out(1, 0.4)" });
+      gsap.to(el, { rotateX: 0, rotateY: 0, duration: .55, ease: "power3.out" });
     });
   });
 }
 
 // ===================== MARQUEE =====================
-function startMarquee() {
-  if (!window.gsap) return;
-  const inner = $("#marqueeInner");
-  if (!inner) return;
-  // duplicate content for seamless loop
-  inner.innerHTML = inner.innerHTML + inner.innerHTML;
-  const w = inner.scrollWidth / 2;
-  gsap.to(inner, { x: -w, duration: 28, ease: "none", repeat: -1 });
-}
+// (removido)
 
 // ===================== CARD REVEAL ON SCROLL =====================
 function revealCardsOnScroll(scope) {
@@ -535,6 +613,7 @@ function refreshOverview() {
   renderDiaSemana(treinos);
   renderProgresso();
   renderTable();
+  bindCrossHighlight();
 }
 
 // ===================== ATHLETE VIEW =====================
@@ -654,11 +733,12 @@ function renderAthlete() {
 function renderAthleteHeatmap(treinos) {
   const container = $("#aHeatmap");
   container.innerHTML = "";
+  const tooltip = $("#hmTooltip");
 
   const WEEKS = 26;
   const today = startOfDay(new Date());
   const end = new Date(today);
-  end.setDate(end.getDate() - end.getDay() + 6); // sábado
+  end.setDate(end.getDate() - end.getDay() + 6); // sábado da semana atual
   const start = new Date(end);
   start.setDate(start.getDate() - (WEEKS * 7 - 1));
 
@@ -673,19 +753,42 @@ function renderAthleteHeatmap(treinos) {
   const cells = [];
   let totalTreinos = 0;
   let activeDays = 0;
-  const monthMarkers = [];
-  let lastMonth = -1;
+  let longestStreak = 0;
+  let curStreak = 0;
+  const perWeek = {};
+  const perDow = [0,0,0,0,0,0,0];
+  const todayKey = inputDateValue(today);
+
+  // months row alinhada com colunas
+  const monthsSpan = [];
+  let curMonth = -1;
 
   for (let i = 0; i < totalDias; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
     const key = inputDateValue(d);
     const v = counts[key] || 0;
-    if (v > 0) { totalTreinos += v; activeDays++; }
+    const w = isoWeek(d);
 
-    if (d.getDate() === 1 && d.getMonth() !== lastMonth) {
-      monthMarkers.push(d.toLocaleDateString("pt-BR", { month: "short" }));
-      lastMonth = d.getMonth();
+    if (v > 0) {
+      totalTreinos += v;
+      activeDays++;
+      curStreak++;
+      longestStreak = Math.max(longestStreak, curStreak);
+      perWeek[w] = (perWeek[w] || 0) + v;
+      perDow[d.getDay()] += v;
+    } else {
+      curStreak = 0;
+    }
+
+    // mês muda em cada coluna nova (i % 7 === 0)
+    if (i % 7 === 0) {
+      if (d.getMonth() !== curMonth) {
+        monthsSpan.push({ label: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""), cols: 1 });
+        curMonth = d.getMonth();
+      } else {
+        monthsSpan[monthsSpan.length - 1].cols++;
+      }
     }
 
     const cell = document.createElement("div");
@@ -694,17 +797,74 @@ function renderAthleteHeatmap(treinos) {
     else if (v === 2) cell.classList.add("l2");
     else if (v === 3) cell.classList.add("l3");
     else if (v >= 4) cell.classList.add("l4");
-    cell.title = `${fmtDate(d)} · ${v} treino${v !== 1 ? "s" : ""}`;
-    cell.dataset.week = isoWeek(d);
+    if (key === todayKey) cell.classList.add("is-today");
+    cell.dataset.week = w;
+    cell.dataset.date = key;
+    cell.dataset.count = v;
+    cell.dataset.dateLabel = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
+    cell.dataset.rel = fmtRelative(d);
     container.appendChild(cell);
     cells.push(cell);
   }
 
-  $("#heatmapTotal").textContent = `${totalTreinos} treinos · ${activeDays} dias ativos`;
-  $("#hmMonths").textContent = monthMarkers.join("  ·  ");
+  // months header alinhado
+  const monthsEl = $("#hmMonths");
+  monthsEl.innerHTML = "";
+  monthsSpan.forEach((m) => {
+    const s = document.createElement("span");
+    // cada coluna tem 16px + 4px gap; ajusta largura para somar
+    s.style.width = (m.cols * 16 + (m.cols - 1) * 4 + 4) + "px";
+    s.textContent = m.label;
+    monthsEl.appendChild(s);
+  });
+
+  // stats
+  const weeksEntries = Object.entries(perWeek);
+  const bestWeek = weeksEntries.length ? weeksEntries.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
+  const dayNames = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const favDowIdx = perDow.indexOf(Math.max(...perDow));
+  const favDowCount = perDow[favDowIdx] || 0;
+  const totalWeeksWithData = weeksEntries.length || 1;
+  const avgWeek = (totalTreinos / WEEKS).toFixed(1);
+
+  animateCounter($("#hmTotal"), totalTreinos);
+  animateCounter($("#hmActiveDays"), activeDays);
+  $("#hmBestWeek").textContent = bestWeek ? "S" + bestWeek[0].split("-W")[1] : "—";
+  $("#hmBestWeekCount").textContent = bestWeek ? `${bestWeek[1]} treinos` : "—";
+  animateCounter($("#hmLongestStreak"), longestStreak);
+  $("#hmFavDay").textContent = favDowCount ? dayNames[favDowIdx] : "—";
+  $("#hmFavDayCount").textContent = favDowCount ? `${favDowCount} treinos` : "—";
+  $("#hmAvgWeek").textContent = avgWeek;
+
+  $("#heatmapPeriod").textContent =
+    `${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} → ${end.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`;
+
+  // tooltip interaction
+  cells.forEach((cell) => {
+    cell.addEventListener("mouseenter", (e) => {
+      const v = Number(cell.dataset.count);
+      tooltip.hidden = false;
+      tooltip.querySelector(".hmt-date").textContent = cell.dataset.dateLabel;
+      tooltip.querySelector(".hmt-count").innerHTML = v > 0
+        ? `${v} <span class="hmt-meta">treino${v !== 1 ? "s" : ""}</span>`
+        : `<span class="hmt-meta">sem treino</span>`;
+      tooltip.querySelector(".hmt-rel").textContent = cell.dataset.rel;
+      const r = cell.getBoundingClientRect();
+      tooltip.style.left = (r.left + r.width / 2) + "px";
+      tooltip.style.top = r.top + "px";
+      if (window.gsap) gsap.fromTo(tooltip, { opacity: 0, y: -4 }, { opacity: 1, y: -8, duration: .18, ease: "power2.out" });
+    });
+    cell.addEventListener("mouseleave", () => {
+      if (window.gsap) {
+        gsap.to(tooltip, { opacity: 0, duration: .15, onComplete: () => { tooltip.hidden = true; } });
+      } else {
+        tooltip.hidden = true;
+      }
+    });
+  });
 
   if (window.gsap) {
-    gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .003, from: "start" }, duration: .35, ease: "back.out(2)" });
+    gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .002, from: "start" }, duration: .3, ease: "back.out(2)" });
   }
 }
 
@@ -1020,8 +1180,6 @@ function bindEvents() {
 
 // ===================== INIT =====================
 (function init() {
-  initCursor();
-  startMarquee();
   bindEvents();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
