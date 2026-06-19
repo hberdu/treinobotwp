@@ -592,19 +592,20 @@ function refreshOverview() {
   bindCrossHighlight();
 }
 
-// ===================== CHAMPIONS CAROUSEL =====================
-function renderChampions(treinosPeriodo) {
-  const rail = $("#champsRail");
-  if (!rail) return;
-  rail.innerHTML = "";
+// ===================== CHAMPIONS CAROUSEL (3D coverflow) =====================
+const CHAMPS_STATE = { cards: [], current: 0, autoTimer: null };
 
-  // Ordenado pela mesma regra da tabela: semanas com meta batida (progressoSemanal) desc
+function renderChampions() {
+  const track = $("#champsRail");
+  if (!track) return;
+  track.innerHTML = "";
+  $("#champsDots").innerHTML = "";
+
   const ordenados = [...state.atletas].sort((a, b) => {
     if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
     return b.treinos - a.treinos;
   });
 
-  // contagem na semana atual
   const today = startOfDay(new Date());
   const daysSinceMonday = (today.getDay() + 6) % 7;
   const monday = new Date(today);
@@ -613,40 +614,43 @@ function renderChampions(treinosPeriodo) {
   const treinosBySemana = {};
   for (const t of state.treinos) {
     const d = new Date(t.data);
-    if (d >= monday) {
-      treinosBySemana[t.nome] = (treinosBySemana[t.nome] || 0) + 1;
-    }
+    if (d >= monday) treinosBySemana[t.nome] = (treinosBySemana[t.nome] || 0) + 1;
   }
 
   const top = ordenados.slice(0, 8);
-
   if (top.length === 0) {
-    const empty = document.createElement("div");
+    const empty = document.createElement("article");
     empty.className = "champ-card empty";
     empty.textContent = "// sem dados ainda";
-    rail.appendChild(empty);
+    track.appendChild(empty);
     return;
   }
 
+  const maxSemana = Math.max(1, ...top.map(a => a.progressoSemanal || 0));
+  const meta = state.meta || 5;
+
+  CHAMPS_STATE.cards = [];
   top.forEach((a, i) => {
     const card = document.createElement("article");
     const col = colorFor(a.nome);
     card.className = "champ-card";
     card.style.setProperty("--champ-color", col);
+    const pctBar = Math.min(100, Math.round((a.progressoSemanal / Math.max(maxSemana, 1)) * 100));
     card.innerHTML = `
       <div class="champ-rank">
         <b>${i + 1}</b>
-        <span>${i === 0 ? "líder" : "top " + (i + 1)}</span>
+        <span>${i === 0 ? "líder · ★" : "top " + (i + 1)}</span>
       </div>
       <div class="champ-name">${escapeHtml(a.nome)}</div>
+      <div class="champ-bar"><i data-pct="${pctBar}"></i></div>
       <div class="champ-metrics">
         <div class="champ-metric">
           <span class="champ-metric-num">${treinosBySemana[a.nome] || 0}</span>
-          <span class="champ-metric-label">esta semana</span>
+          <span class="champ-metric-label">esta sem.</span>
         </div>
         <div class="champ-metric">
           <span class="champ-metric-num">${a.progressoSemanal}</span>
-          <span class="champ-metric-label">sem. cumpridas</span>
+          <span class="champ-metric-label">sem. ✓</span>
         </div>
         <div class="champ-metric">
           <span class="champ-metric-num">${a.treinos}</span>
@@ -654,25 +658,100 @@ function renderChampions(treinosPeriodo) {
         </div>
       </div>
     `;
-    card.addEventListener("click", () => openAthleteView(a.nome));
-    rail.appendChild(card);
+    card.addEventListener("click", () => {
+      const idx = CHAMPS_STATE.cards.indexOf(card);
+      if (idx === CHAMPS_STATE.current) {
+        openAthleteView(a.nome);
+      } else {
+        goToChamp(idx);
+      }
+    });
+    track.appendChild(card);
+    CHAMPS_STATE.cards.push(card);
 
-    if (window.gsap) {
-      gsap.from(card, {
-        opacity: 0, y: 30, scale: .95,
-        duration: .65, delay: i * .07,
-        ease: "power3.out",
-      });
+    // dot indicator
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.addEventListener("click", () => goToChamp(i));
+    $("#champsDots").appendChild(dot);
+  });
+
+  CHAMPS_STATE.current = 0;
+  layoutChamps();
+
+  // anima bars com delay
+  CHAMPS_STATE.cards.forEach((c, i) => {
+    const fill = c.querySelector(".champ-bar > i");
+    if (fill) {
+      const pct = fill.dataset.pct;
+      if (window.gsap) gsap.to(fill, { width: pct + "%", duration: 1, delay: .6 + i * .08, ease: "power2.out" });
+      else fill.style.width = pct + "%";
     }
   });
+
+  // entrada inicial
+  if (window.gsap) {
+    gsap.from(CHAMPS_STATE.cards, {
+      opacity: 0, y: 40, rotateX: -8, duration: .7,
+      stagger: .08, ease: "power3.out",
+    });
+  }
 }
 
+function layoutChamps() {
+  const N = CHAMPS_STATE.cards.length;
+  if (!N) return;
+  const cur = CHAMPS_STATE.current;
+  const STEP_X = 180;     // px horizontal por nível
+  const STEP_Z = 150;     // px de profundidade por nível
+  const STEP_ROT = 22;    // graus por nível
+
+  CHAMPS_STATE.cards.forEach((card, i) => {
+    let diff = i - cur;
+    // distância mínima circular para suavidade quando passa do limite
+    if (diff > N / 2) diff -= N;
+    if (diff < -N / 2) diff += N;
+    const abs = Math.abs(diff);
+    const x = diff * STEP_X;
+    const z = -abs * STEP_Z;
+    const rotY = -diff * STEP_ROT;
+    const opacity = abs > 3 ? 0 : 1 - abs * 0.18;
+    const blur = abs > 0 ? Math.min(4, abs * 1.2) : 0;
+    const visible = abs <= 4;
+
+    card.classList.toggle("is-center", diff === 0);
+    card.style.pointerEvents = visible ? "auto" : "none";
+    card.style.zIndex = String(100 - abs);
+
+    if (window.gsap) {
+      gsap.to(card, {
+        x, z, rotateY: rotY, opacity,
+        filter: `blur(${blur}px)`,
+        duration: .8,
+        ease: "power3.out",
+      });
+    } else {
+      card.style.transform = `translate3d(${x}px, 0, ${z}px) rotateY(${rotY}deg)`;
+      card.style.opacity = opacity;
+    }
+  });
+
+  // dots
+  $$("#champsDots .dot").forEach((d, i) => d.classList.toggle("is-active", i === cur));
+}
+
+function goToChamp(idx) {
+  const N = CHAMPS_STATE.cards.length;
+  if (!N) return;
+  CHAMPS_STATE.current = ((idx % N) + N) % N;
+  layoutChamps();
+}
+
+function nextChamp() { goToChamp(CHAMPS_STATE.current + 1); }
+function prevChamp() { goToChamp(CHAMPS_STATE.current - 1); }
+
 function scrollChampions(dir) {
-  const rail = $("#champsRail");
-  if (!rail) return;
-  const card = rail.querySelector(".champ-card");
-  const step = card ? card.offsetWidth + 16 : 300;
-  rail.scrollBy({ left: dir * step * 1.2, behavior: "smooth" });
+  if (dir > 0) nextChamp(); else prevChamp();
 }
 
 // ===================== ATHLETE VIEW =====================
@@ -804,7 +883,7 @@ function renderAthlete() {
 
 // ===================== HEATMAP (colunas semanais) =====================
 const WEEK_COLS = 26;
-const HEATMAP_STATE = { weeks: [], openWeek: null };
+const HEATMAP_STATE = { weeks: [], openWeek: null, toastTimer: null };
 
 function renderAthleteHeatmap(treinos) {
   const container = $("#aHeatmap");
@@ -813,17 +892,16 @@ function renderAthleteHeatmap(treinos) {
 
   const today = startOfDay(new Date());
 
-  // Encontra a segunda-feira da semana atual
+  // segunda da semana atual
   const dayOfWeek = today.getDay();
-  const daysSinceMonday = (dayOfWeek + 6) % 7; // 0=segunda
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
   const currentMonday = new Date(today);
   currentMonday.setDate(currentMonday.getDate() - daysSinceMonday);
 
-  // Início = segunda da primeira semana (WEEK_COLS - 1 semanas atrás)
   const start = new Date(currentMonday);
   start.setDate(start.getDate() - (WEEK_COLS - 1) * 7);
   const end = new Date(currentMonday);
-  end.setDate(end.getDate() + 6); // domingo da semana atual
+  end.setDate(end.getDate() + 6); // domingo
 
   const counts = {};
   for (const t of treinos) {
@@ -835,10 +913,10 @@ function renderAthleteHeatmap(treinos) {
   const todayKey = inputDateValue(today);
   let totalTreinos = 0, activeDays = 0, longestStreak = 0, curStreak = 0;
   const perWeek = {};
-  const perDow = [0, 0, 0, 0, 0, 0, 0]; // dom..sáb (índice JS)
+  const perDow = [0, 0, 0, 0, 0, 0, 0];
 
   HEATMAP_STATE.weeks = [];
-  const monthsSpan = []; // {label, cols}
+  const monthsSpan = [];
   let curMonthIdx = -1;
 
   const dayLabels = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -848,7 +926,7 @@ function renderAthleteHeatmap(treinos) {
     const colMonday = new Date(start);
     colMonday.setDate(colMonday.getDate() + col * 7);
 
-    // mês: usa quinta-feira da semana para mais estabilidade
+    // mês baseado em quinta-feira (mais estável)
     const colThursday = new Date(colMonday);
     colThursday.setDate(colThursday.getDate() + 3);
     if (colThursday.getMonth() !== curMonthIdx) {
@@ -916,20 +994,19 @@ function renderAthleteHeatmap(treinos) {
       cells.push(cell);
     }
 
-    // hover na coluna inteira destaca
-    colEl.addEventListener("mouseenter", () => colEl.classList.add("is-hover"));
-    colEl.addEventListener("mouseleave", () => colEl.classList.remove("is-hover"));
+    colEl.addEventListener("click", () => showWeekToast(isoW));
 
     HEATMAP_STATE.weeks.push({ iso: isoW, monday: new Date(colMonday), days, el: colEl });
     container.appendChild(colEl);
   }
 
-  // months header alinhado (18px col + 5px gap)
+  // months header alinhado (18px col + 5px gap entre colunas)
   const monthsEl = $("#hmMonths");
   monthsEl.innerHTML = "";
-  monthsSpan.forEach((m) => {
+  monthsSpan.forEach((m, i) => {
     const s = document.createElement("span");
-    s.style.width = (m.cols * 18 + (m.cols - 1) * 5 + 5) + "px";
+    const widthPerCol = 18 + 5;
+    s.style.width = (m.cols * widthPerCol - 5 + (i === 0 ? 0 : 5)) + "px";
     s.textContent = m.label;
     monthsEl.appendChild(s);
   });
@@ -953,132 +1030,99 @@ function renderAthleteHeatmap(treinos) {
   $("#heatmapPeriod").textContent =
     `${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} → ${end.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`;
 
-  // garante que painel expandido fica fechado
-  closeWeekPanel(true);
+  closeWeekToast(true);
 
   if (window.gsap) {
     gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .0015, from: "start" }, duration: .3, ease: "back.out(2)" });
   }
 }
 
-// ===================== WEEK EXPAND (FLIP-style) =====================
-function openWeekPanel(iso) {
+// ===================== WEEK TOAST =====================
+function showWeekToast(iso) {
   const weekData = HEATMAP_STATE.weeks.find(w => w.iso === iso);
   if (!weekData) return;
 
-  // se outra estiver aberta, fecha primeiro sem animação
-  if (HEATMAP_STATE.openWeek && HEATMAP_STATE.openWeek !== iso) closeWeekPanel(true);
+  // limpa toast anterior
+  if (HEATMAP_STATE.toastTimer) clearTimeout(HEATMAP_STATE.toastTimer);
 
   HEATMAP_STATE.openWeek = iso;
-  const panel = $("#weekExpand");
-  const row = $("#weRow");
-  row.innerHTML = "";
+  HEATMAP_STATE.weeks.forEach(w => w.el.classList.toggle("is-active", w.iso === iso));
 
+  const toast = $("#weekToast");
+  const row = $("#wtRow");
   const sunday = new Date(weekData.monday);
   sunday.setDate(sunday.getDate() + 6);
-  $("#weLabel").textContent = weekLabel(iso) + " · " + weekData.monday.getFullYear();
-  $("#weRange").textContent = fmtRange(weekData.monday, sunday);
 
-  const maxCount = Math.max(1, ...weekData.days.map(d => d.count));
+  $("#wtLabel").textContent = weekLabel(iso);
+  $("#wtRange").textContent = fmtRange(weekData.monday, sunday);
 
+  row.innerHTML = "";
   weekData.days.forEach((d) => {
     const el = document.createElement("div");
-    el.className = "we-day";
+    el.className = "wt-day";
     if (d.isToday) el.classList.add("is-today");
     el.innerHTML = `
-      <span class="we-day-name">${d.label}</span>
-      <span class="we-day-date">${String(d.date.getDate()).padStart(2,"0")}/${String(d.date.getMonth()+1).padStart(2,"0")}</span>
-      <span class="we-day-num ${d.count === 0 ? "is-zero" : ""}">${d.count}</span>
-      <span class="we-day-label">${d.count === 1 ? "treino" : "treinos"}</span>
-      <div class="we-day-bar"><i data-pct="${(d.count / maxCount) * 100}"></i></div>
+      <span class="wt-day-name">${d.label}</span>
+      <span class="wt-day-num ${d.count === 0 ? "is-zero" : ""}" data-target="${d.count}">0</span>
+      <span class="wt-day-date">${String(d.date.getDate()).padStart(2,"0")}/${String(d.date.getMonth()+1).padStart(2,"0")}</span>
     `;
     row.appendChild(el);
   });
 
-  // marca coluna como ativa
-  HEATMAP_STATE.weeks.forEach(w => w.el.classList.toggle("is-active", w.iso === iso));
-
-  // anima usando FLIP: parte da coluna até virar linha
-  panel.hidden = false;
-  const stage = $("#heatmapStage");
-  const colRect = weekData.el.getBoundingClientRect();
-  const stageRect = stage.getBoundingClientRect();
+  toast.hidden = false;
 
   if (window.gsap) {
-    // estado inicial: pequena, na posição da coluna, rotacionada
-    gsap.set(panel, {
-      x: colRect.left - stageRect.left,
-      y: colRect.top - stageRect.top,
-      width: colRect.width,
-      height: colRect.height,
-      scale: 1,
-      opacity: 0,
-      rotateZ: -90,
-      transformOrigin: "top left",
-    });
-    gsap.to(panel, {
-      x: 0, y: 0,
-      width: "100%", height: "100%",
-      rotateZ: 0,
-      opacity: 1,
-      duration: .65,
-      ease: "power3.inOut",
-      onComplete: () => {
-        gsap.set(panel, { clearProps: "x,y,width,height,rotateZ,scale,opacity,transformOrigin" });
-      },
-    });
-
-    // anima os dias com stagger
+    gsap.killTweensOf(toast);
+    gsap.fromTo(toast,
+      { opacity: 0, x: 60, scale: .92 },
+      { opacity: 1, x: 0, scale: 1, duration: .5, ease: "back.out(1.6)" }
+    );
     gsap.from(row.children, {
-      opacity: 0,
-      y: 24,
-      scale: .85,
-      duration: .5,
-      stagger: .06,
-      delay: .25,
-      ease: "back.out(1.6)",
-    });
-    // bars
-    gsap.to(row.querySelectorAll(".we-day-bar > i"), {
-      width: (i, el) => el.dataset.pct + "%",
-      duration: .8,
-      delay: .55,
-      stagger: .04,
+      y: 14, opacity: 0,
+      duration: .4,
+      stagger: .05,
+      delay: .15,
       ease: "power2.out",
     });
-
-    // numerals count up
-    row.querySelectorAll(".we-day-num").forEach((el, i) => {
-      const target = weekData.days[i].count;
+    // count-up nos numerais
+    row.querySelectorAll(".wt-day-num").forEach((el, i) => {
+      const target = Number(el.dataset.target) || 0;
       const obj = { v: 0 };
       gsap.to(obj, {
-        v: target, duration: .9, delay: .3 + i * .05, ease: "power2.out",
+        v: target, duration: .7, delay: .25 + i * .05, ease: "power2.out",
         onUpdate: () => { el.textContent = Math.round(obj.v); },
       });
     });
-  } else {
-    panel.style.opacity = 1;
+    // barra de progresso (4s para auto-close)
+    const bar = $("#wtProgress");
+    bar.innerHTML = '<i></i>';
+    gsap.fromTo(bar.querySelector("i"), { scaleX: 1 }, {
+      scaleX: 0, duration: 5, ease: "none",
+    });
   }
+
+  // auto-close em 5s
+  HEATMAP_STATE.toastTimer = setTimeout(() => closeWeekToast(), 5000);
 }
 
-function closeWeekPanel(skipAnim) {
-  const panel = $("#weekExpand");
-  if (panel.hidden) return;
+function closeWeekToast(skipAnim) {
+  const toast = $("#weekToast");
+  if (toast.hidden) return;
   HEATMAP_STATE.openWeek = null;
   HEATMAP_STATE.weeks.forEach(w => w.el.classList.remove("is-active"));
-
+  if (HEATMAP_STATE.toastTimer) {
+    clearTimeout(HEATMAP_STATE.toastTimer);
+    HEATMAP_STATE.toastTimer = null;
+  }
   if (skipAnim || !window.gsap) {
-    panel.hidden = true;
+    toast.hidden = true;
     return;
   }
-  gsap.to(panel, {
-    opacity: 0,
-    scale: .95,
-    duration: .35,
-    ease: "power2.in",
+  gsap.to(toast, {
+    opacity: 0, x: 60, scale: .92, duration: .35, ease: "power2.in",
     onComplete: () => {
-      panel.hidden = true;
-      gsap.set(panel, { clearProps: "all" });
+      toast.hidden = true;
+      gsap.set(toast, { clearProps: "all" });
     },
   });
 }
@@ -1091,7 +1135,7 @@ function renderWeekBreakdown(allTreinos, metaSem) {
   const today = startOfDay(new Date());
   const ref = new Date(today);
   const daysSinceMonday = (ref.getDay() + 6) % 7;
-  ref.setDate(ref.getDate() - daysSinceMonday); // segunda atual
+  ref.setDate(ref.getDate() - daysSinceMonday);
 
   const weeks = [];
   for (let i = 0; i < WEEKS; i++) {
@@ -1128,19 +1172,13 @@ function renderWeekBreakdown(allTreinos, metaSem) {
 
     li.addEventListener("mouseenter", () => {
       const col = HEATMAP_STATE.weeks.find(x => x.iso === w.iso);
-      if (col) col.el.classList.add("is-hover");
+      if (col) col.el.classList.add("is-active");
     });
     li.addEventListener("mouseleave", () => {
       const col = HEATMAP_STATE.weeks.find(x => x.iso === w.iso);
-      if (col) col.el.classList.remove("is-hover");
+      if (col && HEATMAP_STATE.openWeek !== w.iso) col.el.classList.remove("is-active");
     });
-    li.addEventListener("click", () => {
-      if (HEATMAP_STATE.openWeek === w.iso) {
-        closeWeekPanel();
-      } else {
-        openWeekPanel(w.iso);
-      }
-    });
+    li.addEventListener("click", () => showWeekToast(w.iso));
   });
 }
 
@@ -1397,13 +1435,13 @@ function bindEvents() {
 
   $("#registerForm").addEventListener("submit", handleRegister);
 
-  // week expand close
-  const weClose = $("#weClose");
-  if (weClose) weClose.addEventListener("click", () => closeWeekPanel());
+  // week toast close
+  const wtClose = $("#wtClose");
+  if (wtClose) wtClose.addEventListener("click", () => closeWeekToast());
 
-  // ESC fecha painel da semana
+  // ESC fecha toast
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && HEATMAP_STATE.openWeek) closeWeekPanel();
+    if (e.key === "Escape" && HEATMAP_STATE.openWeek) closeWeekToast();
   });
 
   // champions arrows
@@ -1411,8 +1449,20 @@ function bindEvents() {
     btn.addEventListener("click", () => scrollChampions(Number(btn.dataset.dir) || 1));
   });
 
-  // mantem pill alinhada em resize
-  window.addEventListener("resize", () => requestAnimationFrame(movePill));
+  // setas teclado para navegar carrossel quando focado
+  window.addEventListener("keydown", (e) => {
+    if (document.activeElement && document.activeElement.tagName === "INPUT") return;
+    if (e.key === "ArrowLeft") prevChamp();
+    if (e.key === "ArrowRight") nextChamp();
+  });
+
+  // mantem pill alinhada em resize + relayout do carrossel
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(() => {
+      movePill();
+      layoutChamps();
+    });
+  });
 }
 
 // ===================== INIT =====================
