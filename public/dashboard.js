@@ -62,6 +62,7 @@ Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
 
 // ===================== GSAP =====================
 if (window.gsap && window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
+if (window.gsap && window.Flip) gsap.registerPlugin(Flip);
 
 // ===================== UTILS =====================
 const $ = (s) => document.querySelector(s);
@@ -165,7 +166,6 @@ function highlightAthlete(name, opts = {}) {
   if (lastHighlight === name) return;
   lastHighlight = name;
 
-  let scrollRow = null;
   $$("#atletasTable tbody tr").forEach((tr) => {
     const cell = tr.querySelector(".athlete-name");
     if (cell && cell.textContent === name) {
@@ -174,19 +174,11 @@ function highlightAthlete(name, opts = {}) {
         try { tr.style.setProperty("--athlete-color", colorFor(name)); } catch (_) {}
         pulseSwatch(tr);
         if (window.gsap) gsap.fromTo(tr, { x: -6 }, { x: 0, duration: .4, ease: "power3.out" });
-        scrollRow = tr;
       }
     } else {
       tr.classList.remove("is-highlighted");
     }
   });
-
-  if (scrollRow && opts.scroll) {
-    const rect = scrollRow.getBoundingClientRect();
-    if (rect.top < 120 || rect.bottom > window.innerHeight - 40) {
-      scrollRow.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }
 }
 
 function clearHighlight() {
@@ -224,7 +216,7 @@ function bindCrossHighlight() {
         if (idx === lastIdx) return;
         lastIdx = idx;
         const name = chart.data.labels[idx];
-        if (name) highlightAthlete(name, { scroll: true });
+        if (name) highlightAthlete(name);
       } else if (lastIdx !== -1) {
         lastIdx = -1;
         clearHighlight();
@@ -591,12 +583,96 @@ function renderTable() {
 function refreshOverview() {
   const treinos = getFilteredTreinos();
   renderKpis(treinos);
+  renderChampions(treinos);
   renderRanking(treinos);
   renderSemanal(treinos);
   renderDiaSemana(treinos);
   renderProgresso();
   renderTable();
   bindCrossHighlight();
+}
+
+// ===================== CHAMPIONS CAROUSEL =====================
+function renderChampions(treinosPeriodo) {
+  const rail = $("#champsRail");
+  if (!rail) return;
+  rail.innerHTML = "";
+
+  // Ordenado pela mesma regra da tabela: semanas com meta batida (progressoSemanal) desc
+  const ordenados = [...state.atletas].sort((a, b) => {
+    if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
+    return b.treinos - a.treinos;
+  });
+
+  // contagem na semana atual
+  const today = startOfDay(new Date());
+  const daysSinceMonday = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(monday.getDate() - daysSinceMonday);
+
+  const treinosBySemana = {};
+  for (const t of state.treinos) {
+    const d = new Date(t.data);
+    if (d >= monday) {
+      treinosBySemana[t.nome] = (treinosBySemana[t.nome] || 0) + 1;
+    }
+  }
+
+  const top = ordenados.slice(0, 8);
+
+  if (top.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "champ-card empty";
+    empty.textContent = "// sem dados ainda";
+    rail.appendChild(empty);
+    return;
+  }
+
+  top.forEach((a, i) => {
+    const card = document.createElement("article");
+    const col = colorFor(a.nome);
+    card.className = "champ-card";
+    card.style.setProperty("--champ-color", col);
+    card.innerHTML = `
+      <div class="champ-rank">
+        <b>${i + 1}</b>
+        <span>${i === 0 ? "líder" : "top " + (i + 1)}</span>
+      </div>
+      <div class="champ-name">${escapeHtml(a.nome)}</div>
+      <div class="champ-metrics">
+        <div class="champ-metric">
+          <span class="champ-metric-num">${treinosBySemana[a.nome] || 0}</span>
+          <span class="champ-metric-label">esta semana</span>
+        </div>
+        <div class="champ-metric">
+          <span class="champ-metric-num">${a.progressoSemanal}</span>
+          <span class="champ-metric-label">sem. cumpridas</span>
+        </div>
+        <div class="champ-metric">
+          <span class="champ-metric-num">${a.treinos}</span>
+          <span class="champ-metric-label">total</span>
+        </div>
+      </div>
+    `;
+    card.addEventListener("click", () => openAthleteView(a.nome));
+    rail.appendChild(card);
+
+    if (window.gsap) {
+      gsap.from(card, {
+        opacity: 0, y: 30, scale: .95,
+        duration: .65, delay: i * .07,
+        ease: "power3.out",
+      });
+    }
+  });
+}
+
+function scrollChampions(dir) {
+  const rail = $("#champsRail");
+  if (!rail) return;
+  const card = rail.querySelector(".champ-card");
+  const step = card ? card.offsetWidth + 16 : 300;
+  rail.scrollBy({ left: dir * step * 1.2, behavior: "smooth" });
 }
 
 // ===================== ATHLETE VIEW =====================
@@ -611,7 +687,9 @@ function populateAthleteList() {
 }
 
 function switchTab(view) {
+  const tabs = $(".tabs");
   $$(".tab").forEach(t => t.classList.toggle("is-active", t.dataset.view === view));
+  movePill();
   $$(".view").forEach(v => v.classList.toggle("is-active", v.id === `view-${view}`));
   const active = $(`#view-${view}`);
   if (window.gsap) {
@@ -621,6 +699,17 @@ function switchTab(view) {
   }
   bindMagnets();
   bindTilts();
+}
+
+function movePill() {
+  const tabs = $(".tabs");
+  if (!tabs) return;
+  const active = tabs.querySelector(".tab.is-active");
+  if (!active) return;
+  const tabsRect = tabs.getBoundingClientRect();
+  const r = active.getBoundingClientRect();
+  tabs.style.setProperty("--pill-x", (r.left - tabsRect.left) + "px");
+  tabs.style.setProperty("--pill-w", r.width + "px");
 }
 
 function openAthleteView(name) {
@@ -713,17 +802,28 @@ function renderAthlete() {
   }
 }
 
+// ===================== HEATMAP (colunas semanais) =====================
+const WEEK_COLS = 26;
+const HEATMAP_STATE = { weeks: [], openWeek: null };
+
 function renderAthleteHeatmap(treinos) {
   const container = $("#aHeatmap");
   container.innerHTML = "";
   const tooltip = $("#hmTooltip");
 
-  const WEEKS = 26;
   const today = startOfDay(new Date());
-  const end = new Date(today);
-  end.setDate(end.getDate() - end.getDay() + 6); // sábado da semana atual
-  const start = new Date(end);
-  start.setDate(start.getDate() - (WEEKS * 7 - 1));
+
+  // Encontra a segunda-feira da semana atual
+  const dayOfWeek = today.getDay();
+  const daysSinceMonday = (dayOfWeek + 6) % 7; // 0=segunda
+  const currentMonday = new Date(today);
+  currentMonday.setDate(currentMonday.getDate() - daysSinceMonday);
+
+  // Início = segunda da primeira semana (WEEK_COLS - 1 semanas atrás)
+  const start = new Date(currentMonday);
+  start.setDate(start.getDate() - (WEEK_COLS - 1) * 7);
+  const end = new Date(currentMonday);
+  end.setDate(end.getDate() + 6); // domingo da semana atual
 
   const counts = {};
   for (const t of treinos) {
@@ -732,71 +832,104 @@ function renderAthleteHeatmap(treinos) {
     counts[inputDateValue(d)] = (counts[inputDateValue(d)] || 0) + 1;
   }
 
-  const totalDias = WEEKS * 7;
-  const cells = [];
-  let totalTreinos = 0;
-  let activeDays = 0;
-  let longestStreak = 0;
-  let curStreak = 0;
-  const perWeek = {};
-  const perDow = [0,0,0,0,0,0,0];
   const todayKey = inputDateValue(today);
+  let totalTreinos = 0, activeDays = 0, longestStreak = 0, curStreak = 0;
+  const perWeek = {};
+  const perDow = [0, 0, 0, 0, 0, 0, 0]; // dom..sáb (índice JS)
 
-  // months row alinhada com colunas
-  const monthsSpan = [];
-  let curMonth = -1;
+  HEATMAP_STATE.weeks = [];
+  const monthsSpan = []; // {label, cols}
+  let curMonthIdx = -1;
 
-  for (let i = 0; i < totalDias; i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    const key = inputDateValue(d);
-    const v = counts[key] || 0;
-    const w = isoWeek(d);
+  const dayLabels = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const cells = [];
 
-    if (v > 0) {
-      totalTreinos += v;
-      activeDays++;
-      curStreak++;
-      longestStreak = Math.max(longestStreak, curStreak);
-      perWeek[w] = (perWeek[w] || 0) + v;
-      perDow[d.getDay()] += v;
-    } else {
-      curStreak = 0;
+  for (let col = 0; col < WEEK_COLS; col++) {
+    const colMonday = new Date(start);
+    colMonday.setDate(colMonday.getDate() + col * 7);
+
+    // mês: usa quinta-feira da semana para mais estabilidade
+    const colThursday = new Date(colMonday);
+    colThursday.setDate(colThursday.getDate() + 3);
+    if (colThursday.getMonth() !== curMonthIdx) {
+      monthsSpan.push({
+        label: colThursday.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+        cols: 1,
+      });
+      curMonthIdx = colThursday.getMonth();
+    } else if (monthsSpan.length) {
+      monthsSpan[monthsSpan.length - 1].cols++;
     }
 
-    // mês muda em cada coluna nova (i % 7 === 0)
-    if (i % 7 === 0) {
-      if (d.getMonth() !== curMonth) {
-        monthsSpan.push({ label: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""), cols: 1 });
-        curMonth = d.getMonth();
+    const colEl = document.createElement("div");
+    colEl.className = "week-col";
+    const isoW = isoWeek(colMonday);
+    colEl.dataset.week = isoW;
+
+    const days = [];
+    for (let r = 0; r < 7; r++) {
+      const d = new Date(colMonday);
+      d.setDate(d.getDate() + r);
+      const key = inputDateValue(d);
+      const v = counts[key] || 0;
+
+      if (v > 0) {
+        totalTreinos += v; activeDays++; curStreak++;
+        longestStreak = Math.max(longestStreak, curStreak);
+        perWeek[isoW] = (perWeek[isoW] || 0) + v;
+        perDow[d.getDay()] += v;
       } else {
-        monthsSpan[monthsSpan.length - 1].cols++;
+        curStreak = 0;
       }
+
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if (v === 1) cell.classList.add("l1");
+      else if (v === 2) cell.classList.add("l2");
+      else if (v === 3) cell.classList.add("l3");
+      else if (v >= 4) cell.classList.add("l4");
+      if (key === todayKey) cell.classList.add("is-today");
+      cell.dataset.date = key;
+      cell.dataset.count = v;
+      cell.dataset.dateLabel = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
+      cell.dataset.rel = fmtRelative(d);
+
+      cell.addEventListener("mouseenter", () => {
+        tooltip.hidden = false;
+        tooltip.querySelector(".hmt-date").textContent = cell.dataset.dateLabel;
+        tooltip.querySelector(".hmt-count").innerHTML = v > 0
+          ? `${v} <span class="hmt-meta">treino${v !== 1 ? "s" : ""}</span>`
+          : `<span class="hmt-meta">sem treino</span>`;
+        tooltip.querySelector(".hmt-rel").textContent = cell.dataset.rel;
+        const r2 = cell.getBoundingClientRect();
+        tooltip.style.left = (r2.left + r2.width / 2) + "px";
+        tooltip.style.top = r2.top + "px";
+        if (window.gsap) gsap.fromTo(tooltip, { opacity: 0, y: -4 }, { opacity: 1, y: -8, duration: .18, ease: "power2.out" });
+      });
+      cell.addEventListener("mouseleave", () => {
+        if (window.gsap) gsap.to(tooltip, { opacity: 0, duration: .15, onComplete: () => { tooltip.hidden = true; } });
+        else tooltip.hidden = true;
+      });
+
+      colEl.appendChild(cell);
+      days.push({ date: new Date(d), count: v, label: dayLabels[r], isToday: key === todayKey });
+      cells.push(cell);
     }
 
-    const cell = document.createElement("div");
-    cell.className = "cell";
-    if (v === 1) cell.classList.add("l1");
-    else if (v === 2) cell.classList.add("l2");
-    else if (v === 3) cell.classList.add("l3");
-    else if (v >= 4) cell.classList.add("l4");
-    if (key === todayKey) cell.classList.add("is-today");
-    cell.dataset.week = w;
-    cell.dataset.date = key;
-    cell.dataset.count = v;
-    cell.dataset.dateLabel = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
-    cell.dataset.rel = fmtRelative(d);
-    container.appendChild(cell);
-    cells.push(cell);
+    // hover na coluna inteira destaca
+    colEl.addEventListener("mouseenter", () => colEl.classList.add("is-hover"));
+    colEl.addEventListener("mouseleave", () => colEl.classList.remove("is-hover"));
+
+    HEATMAP_STATE.weeks.push({ iso: isoW, monday: new Date(colMonday), days, el: colEl });
+    container.appendChild(colEl);
   }
 
-  // months header alinhado
+  // months header alinhado (18px col + 5px gap)
   const monthsEl = $("#hmMonths");
   monthsEl.innerHTML = "";
   monthsSpan.forEach((m) => {
     const s = document.createElement("span");
-    // cada coluna tem 16px + 4px gap; ajusta largura para somar
-    s.style.width = (m.cols * 16 + (m.cols - 1) * 4 + 4) + "px";
+    s.style.width = (m.cols * 18 + (m.cols - 1) * 5 + 5) + "px";
     s.textContent = m.label;
     monthsEl.appendChild(s);
   });
@@ -804,51 +937,150 @@ function renderAthleteHeatmap(treinos) {
   // stats
   const weeksEntries = Object.entries(perWeek);
   const bestWeek = weeksEntries.length ? weeksEntries.reduce((a, b) => (b[1] > a[1] ? b : a)) : null;
-  const dayNames = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const dayNamesShort = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const favDowIdx = perDow.indexOf(Math.max(...perDow));
   const favDowCount = perDow[favDowIdx] || 0;
-  const totalWeeksWithData = weeksEntries.length || 1;
-  const avgWeek = (totalTreinos / WEEKS).toFixed(1);
 
   animateCounter($("#hmTotal"), totalTreinos);
   animateCounter($("#hmActiveDays"), activeDays);
   $("#hmBestWeek").textContent = bestWeek ? "S" + bestWeek[0].split("-W")[1] : "—";
   $("#hmBestWeekCount").textContent = bestWeek ? `${bestWeek[1]} treinos` : "—";
   animateCounter($("#hmLongestStreak"), longestStreak);
-  $("#hmFavDay").textContent = favDowCount ? dayNames[favDowIdx] : "—";
+  $("#hmFavDay").textContent = favDowCount ? dayNamesShort[favDowIdx] : "—";
   $("#hmFavDayCount").textContent = favDowCount ? `${favDowCount} treinos` : "—";
-  $("#hmAvgWeek").textContent = avgWeek;
+  $("#hmAvgWeek").textContent = (totalTreinos / WEEK_COLS).toFixed(1);
 
   $("#heatmapPeriod").textContent =
     `${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} → ${end.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`;
 
-  // tooltip interaction
-  cells.forEach((cell) => {
-    cell.addEventListener("mouseenter", (e) => {
-      const v = Number(cell.dataset.count);
-      tooltip.hidden = false;
-      tooltip.querySelector(".hmt-date").textContent = cell.dataset.dateLabel;
-      tooltip.querySelector(".hmt-count").innerHTML = v > 0
-        ? `${v} <span class="hmt-meta">treino${v !== 1 ? "s" : ""}</span>`
-        : `<span class="hmt-meta">sem treino</span>`;
-      tooltip.querySelector(".hmt-rel").textContent = cell.dataset.rel;
-      const r = cell.getBoundingClientRect();
-      tooltip.style.left = (r.left + r.width / 2) + "px";
-      tooltip.style.top = r.top + "px";
-      if (window.gsap) gsap.fromTo(tooltip, { opacity: 0, y: -4 }, { opacity: 1, y: -8, duration: .18, ease: "power2.out" });
-    });
-    cell.addEventListener("mouseleave", () => {
-      if (window.gsap) {
-        gsap.to(tooltip, { opacity: 0, duration: .15, onComplete: () => { tooltip.hidden = true; } });
-      } else {
-        tooltip.hidden = true;
-      }
-    });
-  });
+  // garante que painel expandido fica fechado
+  closeWeekPanel(true);
 
   if (window.gsap) {
-    gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .002, from: "start" }, duration: .3, ease: "back.out(2)" });
+    gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .0015, from: "start" }, duration: .3, ease: "back.out(2)" });
   }
+}
+
+// ===================== WEEK EXPAND (FLIP-style) =====================
+function openWeekPanel(iso) {
+  const weekData = HEATMAP_STATE.weeks.find(w => w.iso === iso);
+  if (!weekData) return;
+
+  // se outra estiver aberta, fecha primeiro sem animação
+  if (HEATMAP_STATE.openWeek && HEATMAP_STATE.openWeek !== iso) closeWeekPanel(true);
+
+  HEATMAP_STATE.openWeek = iso;
+  const panel = $("#weekExpand");
+  const row = $("#weRow");
+  row.innerHTML = "";
+
+  const sunday = new Date(weekData.monday);
+  sunday.setDate(sunday.getDate() + 6);
+  $("#weLabel").textContent = weekLabel(iso) + " · " + weekData.monday.getFullYear();
+  $("#weRange").textContent = fmtRange(weekData.monday, sunday);
+
+  const maxCount = Math.max(1, ...weekData.days.map(d => d.count));
+
+  weekData.days.forEach((d) => {
+    const el = document.createElement("div");
+    el.className = "we-day";
+    if (d.isToday) el.classList.add("is-today");
+    el.innerHTML = `
+      <span class="we-day-name">${d.label}</span>
+      <span class="we-day-date">${String(d.date.getDate()).padStart(2,"0")}/${String(d.date.getMonth()+1).padStart(2,"0")}</span>
+      <span class="we-day-num ${d.count === 0 ? "is-zero" : ""}">${d.count}</span>
+      <span class="we-day-label">${d.count === 1 ? "treino" : "treinos"}</span>
+      <div class="we-day-bar"><i data-pct="${(d.count / maxCount) * 100}"></i></div>
+    `;
+    row.appendChild(el);
+  });
+
+  // marca coluna como ativa
+  HEATMAP_STATE.weeks.forEach(w => w.el.classList.toggle("is-active", w.iso === iso));
+
+  // anima usando FLIP: parte da coluna até virar linha
+  panel.hidden = false;
+  const stage = $("#heatmapStage");
+  const colRect = weekData.el.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+
+  if (window.gsap) {
+    // estado inicial: pequena, na posição da coluna, rotacionada
+    gsap.set(panel, {
+      x: colRect.left - stageRect.left,
+      y: colRect.top - stageRect.top,
+      width: colRect.width,
+      height: colRect.height,
+      scale: 1,
+      opacity: 0,
+      rotateZ: -90,
+      transformOrigin: "top left",
+    });
+    gsap.to(panel, {
+      x: 0, y: 0,
+      width: "100%", height: "100%",
+      rotateZ: 0,
+      opacity: 1,
+      duration: .65,
+      ease: "power3.inOut",
+      onComplete: () => {
+        gsap.set(panel, { clearProps: "x,y,width,height,rotateZ,scale,opacity,transformOrigin" });
+      },
+    });
+
+    // anima os dias com stagger
+    gsap.from(row.children, {
+      opacity: 0,
+      y: 24,
+      scale: .85,
+      duration: .5,
+      stagger: .06,
+      delay: .25,
+      ease: "back.out(1.6)",
+    });
+    // bars
+    gsap.to(row.querySelectorAll(".we-day-bar > i"), {
+      width: (i, el) => el.dataset.pct + "%",
+      duration: .8,
+      delay: .55,
+      stagger: .04,
+      ease: "power2.out",
+    });
+
+    // numerals count up
+    row.querySelectorAll(".we-day-num").forEach((el, i) => {
+      const target = weekData.days[i].count;
+      const obj = { v: 0 };
+      gsap.to(obj, {
+        v: target, duration: .9, delay: .3 + i * .05, ease: "power2.out",
+        onUpdate: () => { el.textContent = Math.round(obj.v); },
+      });
+    });
+  } else {
+    panel.style.opacity = 1;
+  }
+}
+
+function closeWeekPanel(skipAnim) {
+  const panel = $("#weekExpand");
+  if (panel.hidden) return;
+  HEATMAP_STATE.openWeek = null;
+  HEATMAP_STATE.weeks.forEach(w => w.el.classList.remove("is-active"));
+
+  if (skipAnim || !window.gsap) {
+    panel.hidden = true;
+    return;
+  }
+  gsap.to(panel, {
+    opacity: 0,
+    scale: .95,
+    duration: .35,
+    ease: "power2.in",
+    onComplete: () => {
+      panel.hidden = true;
+      gsap.set(panel, { clearProps: "all" });
+    },
+  });
 }
 
 function renderWeekBreakdown(allTreinos, metaSem) {
@@ -858,7 +1090,8 @@ function renderWeekBreakdown(allTreinos, metaSem) {
   const WEEKS = 12;
   const today = startOfDay(new Date());
   const ref = new Date(today);
-  ref.setDate(ref.getDate() - ref.getDay() + 1); // segunda atual
+  const daysSinceMonday = (ref.getDay() + 6) % 7;
+  ref.setDate(ref.getDate() - daysSinceMonday); // segunda atual
 
   const weeks = [];
   for (let i = 0; i < WEEKS; i++) {
@@ -894,16 +1127,19 @@ function renderWeekBreakdown(allTreinos, metaSem) {
     }
 
     li.addEventListener("mouseenter", () => {
-      $$(`#aHeatmap .cell[data-week="${w.iso}"]`).forEach((c) => {
-        c.classList.add("is-active");
-        if (window.gsap) gsap.fromTo(c, { scale: 1 }, { scale: 1.35, duration: .25, ease: "power2.out" });
-      });
+      const col = HEATMAP_STATE.weeks.find(x => x.iso === w.iso);
+      if (col) col.el.classList.add("is-hover");
     });
     li.addEventListener("mouseleave", () => {
-      $$(`#aHeatmap .cell[data-week="${w.iso}"]`).forEach((c) => {
-        c.classList.remove("is-active");
-        if (window.gsap) gsap.to(c, { scale: 1, duration: .3, ease: "power2.out" });
-      });
+      const col = HEATMAP_STATE.weeks.find(x => x.iso === w.iso);
+      if (col) col.el.classList.remove("is-hover");
+    });
+    li.addEventListener("click", () => {
+      if (HEATMAP_STATE.openWeek === w.iso) {
+        closeWeekPanel();
+      } else {
+        openWeekPanel(w.iso);
+      }
     });
   });
 }
@@ -1100,6 +1336,7 @@ async function fullReload() {
       revealCardsOnScroll(document);
       bindMagnets();
       bindTilts();
+      requestAnimationFrame(movePill);
     }
   } catch (err) {
     console.error(err);
@@ -1159,6 +1396,23 @@ function bindEvents() {
   });
 
   $("#registerForm").addEventListener("submit", handleRegister);
+
+  // week expand close
+  const weClose = $("#weClose");
+  if (weClose) weClose.addEventListener("click", () => closeWeekPanel());
+
+  // ESC fecha painel da semana
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && HEATMAP_STATE.openWeek) closeWeekPanel();
+  });
+
+  // champions arrows
+  $$(".champ-arrow").forEach((btn) => {
+    btn.addEventListener("click", () => scrollChampions(Number(btn.dataset.dir) || 1));
+  });
+
+  // mantem pill alinhada em resize
+  window.addEventListener("resize", () => requestAnimationFrame(movePill));
 }
 
 // ===================== INIT =====================

@@ -39,7 +39,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { overflow-x: hidden; }
 
 body {
   background: var(--bg);
@@ -49,7 +49,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02","cv03","cv11","ss01";
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
@@ -146,7 +145,7 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
 .muted { color: var(--text-soft); font-size: .75rem; }
 
 /* ============================================================
-   TABS  (in topbar)
+   TABS  (in topbar) — pill animada
    ============================================================ */
 .tabs {
   display: flex;
@@ -158,6 +157,17 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   padding: 4px;
   position: relative;
 }
+.tabs::before {
+  content: "";
+  position: absolute;
+  top: 4px; bottom: 4px;
+  left: var(--pill-x, 4px);
+  width: var(--pill-w, 0);
+  background: var(--accent);
+  border-radius: 999px;
+  transition: left .45s cubic-bezier(.65,.05,.36,1), width .45s cubic-bezier(.65,.05,.36,1);
+  z-index: 0;
+}
 .tab {
   background: transparent; border: 0;
   padding: .5rem 1rem;
@@ -166,16 +176,17 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   color: var(--text-soft);
   cursor: pointer;
   border-radius: 999px;
-  transition: color var(--t-fast), background var(--t-fast);
+  transition: color var(--t-fast);
   font-family: inherit;
   display: inline-flex; align-items: baseline; gap: .5rem;
   position: relative;
+  z-index: 1;
 }
-.tab-num { font-size: .65rem; color: inherit; opacity: .55; }
+.tab-num { font-size: .65rem; color: inherit; opacity: .55; transition: opacity var(--t-fast); }
 .tab:hover { color: var(--text); }
+.tab:hover .tab-num { opacity: 1; color: var(--accent); }
 .tab.is-active {
   color: #060608;
-  background: var(--accent);
 }
 .tab.is-active .tab-num { color: #060608; opacity: .7; }
 
@@ -546,6 +557,171 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 /* ============================================================
+   CHAMPIONS CAROUSEL
+   ============================================================ */
+.champs {
+  padding: 2rem 2rem 0;
+  max-width: 100vw;
+}
+.champs-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.champs-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  margin: .25rem 0 0;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+.champs-nav {
+  display: flex;
+  gap: .5rem;
+}
+.champ-arrow {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 50%;
+  width: 42px; height: 42px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+  transition: all var(--t-fast);
+}
+.champ-arrow:hover {
+  background: var(--text);
+  color: #060608;
+  border-color: var(--text);
+  transform: translateY(-2px);
+}
+.champ-arrow:active { transform: translateY(0); }
+
+.champs-rail {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 1rem 0 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.champs-rail::-webkit-scrollbar { height: 6px; }
+.champs-rail::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+.champs-rail::-webkit-scrollbar-track { background: transparent; }
+
+.champ-card {
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  background: linear-gradient(160deg, var(--champ-color, var(--surface)) -10%, var(--surface) 65%);
+  border: 1px solid color-mix(in oklab, var(--champ-color, var(--border)) 40%, var(--border));
+  border-radius: var(--radius);
+  padding: 1.5rem 1.5rem 1.75rem;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--t-med), box-shadow var(--t-med);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 220px;
+}
+.champ-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px -20px color-mix(in oklab, var(--champ-color) 40%, transparent);
+}
+.champ-card::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 140px; height: 140px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--champ-color) 50%, transparent), transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+  opacity: .8;
+}
+.champ-rank {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: .7rem;
+  color: var(--text-soft);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
+.champ-rank b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--champ-color);
+  color: #060608;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+.champ-name {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.1;
+  color: var(--text);
+  word-break: break-word;
+  position: relative;
+  z-index: 1;
+}
+.champ-metrics {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: auto;
+  position: relative;
+  z-index: 1;
+}
+.champ-metric {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.champ-metric-num {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--champ-color);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.champ-metric-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: .62rem;
+  color: var(--text-soft);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.champ-card.empty {
+  background: var(--surface);
+  border-style: dashed;
+  cursor: default;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-soft);
+  font-family: "JetBrains Mono", monospace;
+  font-size: .85rem;
+}
+.champ-card.empty:hover { transform: none; box-shadow: none; }
+
+/* ============================================================
    REGISTER
    ============================================================ */
 .register-wrap {
@@ -622,22 +798,25 @@ tbody tr:last-child td { border-bottom: 0; }
   grid-template-columns: 1fr auto;
   gap: 2rem;
   align-items: center;
-  padding: 2rem;
+  padding: 2rem 2rem 2.25rem;
   margin: 1rem 2rem 0;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklab, var(--athlete-color) 30%, var(--border));
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at 100% 0%, color-mix(in oklab, var(--athlete-color) 14%, transparent), transparent 50%),
-    var(--surface);
+    radial-gradient(circle at 100% 0%, color-mix(in oklab, var(--athlete-color) 30%, transparent), transparent 55%),
+    radial-gradient(circle at 0% 100%, color-mix(in oklab, var(--athlete-color) 14%, transparent), transparent 50%),
+    linear-gradient(180deg, color-mix(in oklab, var(--athlete-color) 6%, var(--surface)), var(--surface));
   position: relative;
   overflow: hidden;
+  box-shadow: 0 24px 60px -32px color-mix(in oklab, var(--athlete-color) 50%, transparent);
 }
 .athlete-hero::before {
   content: "";
   position: absolute;
   top: 0; bottom: 0; left: 0;
-  width: 4px;
+  width: 5px;
   background: var(--athlete-color);
+  box-shadow: 0 0 20px color-mix(in oklab, var(--athlete-color) 70%, transparent);
 }
 
 .ahero-left { min-width: 0; }
@@ -742,64 +921,78 @@ tbody tr:last-child td { border-bottom: 0; }
 .heatmap-card {
   margin: 1rem 2rem 0;
 }
-.hm-months {
-  display: flex;
-  font-size: .68rem;
-  color: var(--text-soft);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  padding-left: 36px; /* aligns with cells start */
-  margin: .5rem 0 .25rem;
-  overflow: hidden;
+.heatmap-stage {
+  position: relative;
+  margin: .25rem 0 1rem;
 }
-.hm-months span {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
 .heatmap-wrap {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 36px 1fr;
   gap: 6px;
   align-items: start;
   overflow-x: auto;
+  padding-bottom: .25rem;
 }
 .hm-days {
   display: grid;
-  grid-template-rows: repeat(7, 16px);
-  gap: 4px;
-  font-size: .65rem;
+  grid-template-rows: repeat(7, 18px);
+  gap: 5px;
+  font-size: .62rem;
   color: var(--text-soft);
   letter-spacing: .08em;
   text-transform: lowercase;
+  padding-top: 0;
 }
-.hm-days span {
-  height: 16px;
-  line-height: 16px;
-}
+.hm-days span { height: 18px; line-height: 18px; }
+
+/* columns = weeks (cada coluna fica fixa, noão encolhe) */
 .heatmap {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 16px);
-  gap: 4px;
+  grid-auto-columns: 18px;
+  grid-template-rows: repeat(7, 18px);
+  gap: 5px;
 }
-.heatmap .cell {
-  width: 16px; height: 16px;
-  border-radius: 3.5px;
-  background: var(--surface-2);
-  transition: transform var(--t-fast), filter var(--t-fast), box-shadow var(--t-fast), outline-color var(--t-fast);
+.heatmap .week-col {
+  display: grid;
+  grid-template-rows: repeat(7, 18px);
+  gap: 5px;
   cursor: pointer;
-  outline: 1.5px solid transparent;
+  position: relative;
+}
+.heatmap .week-col.is-hover .cell,
+.heatmap .week-col.is-active .cell {
+  outline: 1.5px solid var(--athlete-color);
   outline-offset: 1px;
 }
+.heatmap .week-col::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 6px;
+  pointer-events: none;
+  background: color-mix(in oklab, var(--athlete-color) 12%, transparent);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.heatmap .week-col.is-hover::after { opacity: 1; }
+
+.heatmap .cell {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  transition: transform var(--t-fast), filter var(--t-fast), box-shadow var(--t-fast);
+  cursor: pointer;
+}
 .heatmap .cell:hover {
-  transform: scale(1.6);
+  transform: scale(1.4);
   filter: brightness(1.25);
   z-index: 3; position: relative;
   box-shadow: 0 6px 16px -4px color-mix(in oklab, var(--athlete-color) 55%, transparent);
 }
 .heatmap .cell.is-today {
-  outline-color: var(--athlete-color);
+  outline: 2px solid var(--athlete-color);
+  outline-offset: 1px;
 }
 .heatmap .cell.l1 { background: color-mix(in oklab, var(--athlete-color) 22%, transparent); }
 .heatmap .cell.l2 { background: color-mix(in oklab, var(--athlete-color) 45%, transparent); }
@@ -808,11 +1001,149 @@ tbody tr:last-child td { border-bottom: 0; }
   background: var(--athlete-color);
   box-shadow: 0 0 6px color-mix(in oklab, var(--athlete-color) 45%, transparent);
 }
-.heatmap .cell.is-active {
-  outline: 2px solid var(--athlete-color);
-  outline-offset: 1px;
-  z-index: 1; position: relative;
+
+/* month labels under heatmap */
+.hm-months {
+  display: flex;
+  font-size: .6rem;
+  color: var(--text-soft);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding-left: 42px;
+  margin: .6rem 0 0;
+  overflow: hidden;
 }
+.hm-months span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   WEEK EXPAND PANEL  (FLIP target)
+   ============================================================ */
+.week-expand {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--bg-deep), var(--surface));
+  border: 1px solid color-mix(in oklab, var(--athlete-color) 50%, var(--border));
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  z-index: 10;
+  box-shadow: 0 30px 60px -20px color-mix(in oklab, var(--athlete-color) 35%, transparent);
+}
+.we-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.we-label {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: var(--athlete-color);
+  text-transform: none;
+}
+.we-range {
+  font-size: .72rem;
+  color: var(--text-dim);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.we-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+  transition: all var(--t-fast);
+}
+.we-close:hover {
+  background: var(--athlete-color);
+  color: #060608;
+  border-color: var(--athlete-color);
+  transform: rotate(90deg);
+}
+
+.we-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .75rem;
+  flex: 1;
+  align-items: stretch;
+}
+.we-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: 1rem .5rem 1.25rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--t-med), border-color var(--t-med);
+}
+.we-day:hover {
+  transform: translateY(-4px);
+  border-color: var(--athlete-color);
+}
+.we-day-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: .7rem;
+  color: var(--text-soft);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.we-day-date {
+  font-family: "JetBrains Mono", monospace;
+  font-size: .68rem;
+  color: var(--text-dim);
+  margin-top: -.5rem;
+}
+.we-day-num {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.04em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.we-day-num.is-zero { color: var(--text-soft); }
+.we-day-label {
+  font-size: .7rem;
+  color: var(--text-soft);
+}
+.we-day-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.we-day-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--athlete-color);
+  border-radius: 999px;
+  width: 0%;
+}
+.we-day.is-today {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--athlete-color) 12%, var(--surface-2)), var(--surface-2));
+  border-color: var(--athlete-color);
+}
+.we-day.is-today .we-day-name { color: var(--athlete-color); }
 
 .hm-stats {
   display: grid;

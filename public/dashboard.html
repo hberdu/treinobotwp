@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/Flip.min.js"></script>
 </head>
 <body>
   <!-- background art -->
@@ -91,30 +92,45 @@
     </section>
 
     <section class="kpis">
-      <div class="kpi card-tilt" data-tilt>
+      <div class="kpi">
         <div class="brackets"></div>
         <span class="kpi-label mono">atletas</span>
         <span class="kpi-value counter" data-target="0" id="kpiAtletas">0</span>
       </div>
-      <div class="kpi card-tilt" data-tilt>
+      <div class="kpi">
         <div class="brackets"></div>
         <span class="kpi-label mono">treinos</span>
         <span class="kpi-value counter" data-target="0" id="kpiTreinos">0</span>
       </div>
-      <div class="kpi card-tilt" data-tilt>
+      <div class="kpi">
         <div class="brackets"></div>
         <span class="kpi-label mono">média/atleta</span>
         <span class="kpi-value counter" data-target="0" data-decimals="1" id="kpiMedia">0</span>
       </div>
-      <div class="kpi card-tilt accent-kpi" data-tilt>
+      <div class="kpi accent-kpi">
         <div class="brackets"></div>
         <span class="kpi-label mono">hoje</span>
         <span class="kpi-value counter" data-target="0" id="kpiHoje">0</span>
       </div>
     </section>
 
+    <!-- ============== CHAMPIONS CAROUSEL ============== -->
+    <section class="champs">
+      <header class="champs-head">
+        <div>
+          <span class="hero-eyebrow mono">// campeões da semana</span>
+          <h2 class="champs-title">Top da semana</h2>
+        </div>
+        <div class="champs-nav">
+          <button class="champ-arrow" data-dir="-1" aria-label="anterior">←</button>
+          <button class="champ-arrow" data-dir="1" aria-label="próximo">→</button>
+        </div>
+      </header>
+      <div class="champs-rail" id="champsRail"></div>
+    </section>
+
     <main class="grid">
-      <div class="card span-2 card-tilt" data-tilt>
+      <div class="card span-2">
         <div class="brackets"></div>
         <header class="card-head">
           <h3>ranking</h3>
@@ -123,7 +139,7 @@
         <div class="chart-box"><canvas id="chartRanking"></canvas></div>
       </div>
 
-      <div class="card span-2 card-tilt" data-tilt>
+      <div class="card span-2">
         <div class="brackets"></div>
         <header class="card-head">
           <h3>evolução semanal</h3>
@@ -132,7 +148,7 @@
         <div class="chart-box"><canvas id="chartSemanal"></canvas></div>
       </div>
 
-      <div class="card card-tilt" data-tilt>
+      <div class="card">
         <div class="brackets"></div>
         <header class="card-head">
           <h3>dias preferidos</h3>
@@ -141,7 +157,7 @@
         <div class="chart-box"><canvas id="chartDiaSemana"></canvas></div>
       </div>
 
-      <div class="card card-tilt" data-tilt>
+      <div class="card">
         <div class="brackets"></div>
         <header class="card-head">
           <h3>meta semanal</h3>
@@ -150,7 +166,7 @@
         <div class="chart-box"><canvas id="chartProgresso"></canvas></div>
       </div>
 
-      <div class="card span-2 card-tilt" data-tilt>
+      <div class="card span-2">
         <div class="brackets"></div>
         <header class="card-head">
           <h3>classificação</h3>
@@ -188,7 +204,7 @@
     </section>
 
     <section class="register-wrap">
-      <div class="card register-card card-tilt" data-tilt>
+      <div class="card register-card">
         <div class="brackets"></div>
         <header class="card-head">
           <h3>registrar</h3>
@@ -319,24 +335,36 @@
         <header class="card-head">
           <div>
             <h3>26 semanas de constância</h3>
-            <span class="card-tag mono">cada quadrado = 1 dia · cor = treinos no dia</span>
+            <span class="card-tag mono">cada coluna = 1 semana · clique abaixo para explodir</span>
           </div>
           <span class="card-tag mono" id="heatmapPeriod">—</span>
         </header>
 
-        <div class="hm-months mono" id="hmMonths"></div>
-
-        <div class="heatmap-wrap">
-          <div class="hm-days mono" aria-hidden="true">
-            <span></span>
-            <span>seg</span>
-            <span></span>
-            <span>qua</span>
-            <span></span>
-            <span>sex</span>
-            <span></span>
+        <div class="heatmap-stage" id="heatmapStage">
+          <div class="heatmap-wrap">
+            <div class="hm-days mono" aria-hidden="true">
+              <span>seg</span>
+              <span>ter</span>
+              <span>qua</span>
+              <span>qui</span>
+              <span>sex</span>
+              <span>sáb</span>
+              <span>dom</span>
+            </div>
+            <div id="aHeatmap" class="heatmap"></div>
           </div>
-          <div id="aHeatmap" class="heatmap"></div>
+
+          <div class="hm-months mono" id="hmMonths"></div>
+
+          <!-- expanded week panel (FLIP target) -->
+          <div class="week-expand" id="weekExpand" hidden>
+            <header class="we-head">
+              <span class="we-label mono" id="weLabel">—</span>
+              <span class="we-range mono" id="weRange">—</span>
+              <button class="we-close" id="weClose" aria-label="fechar">✕</button>
+            </header>
+            <div class="we-row" id="weRow"></div>
+          </div>
         </div>
 
         <div class="hm-stats">
@@ -395,14 +423,14 @@
         <div class="brackets"></div>
         <header class="card-head">
           <h3>quebra semanal</h3>
-          <span class="card-tag mono">últimas 12 semanas · hover destaca no heatmap</span>
+          <span class="card-tag mono">clique · explode no heatmap</span>
         </header>
         <ul class="weeks-list" id="weeksList"></ul>
       </section>
 
       <!-- Compact charts row -->
       <main class="grid athlete-grid">
-        <div class="card card-tilt" data-tilt>
+        <div class="card">
           <div class="brackets"></div>
           <header class="card-head">
             <h3>frequência</h3>
@@ -411,7 +439,7 @@
           <div class="chart-box"><canvas id="aChartSemanal"></canvas></div>
         </div>
 
-        <div class="card card-tilt" data-tilt>
+        <div class="card">
           <div class="brackets"></div>
           <header class="card-head">
             <h3>dias da semana</h3>
@@ -420,7 +448,7 @@
           <div class="chart-box"><canvas id="aChartDiaSemana"></canvas></div>
         </div>
 
-        <div class="card span-2 card-tilt" data-tilt>
+        <div class="card span-2">
           <div class="brackets"></div>
           <header class="card-head">
             <h3>longo prazo</h3>
