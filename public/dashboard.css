@@ -1058,10 +1058,11 @@ tbody tr:last-child td { border-bottom: 0; }
    ============================================================ */
 .week-toast {
   position: fixed;
-  right: 2rem;
-  bottom: 2rem;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 300;
-  width: min(540px, calc(100vw - 4rem));
+  width: min(640px, calc(100vw - 2rem));
   background: linear-gradient(160deg, color-mix(in oklab, var(--athlete-color) 8%, var(--surface)), var(--surface) 65%);
   border: 1px solid color-mix(in oklab, var(--athlete-color) 35%, var(--border-strong));
   border-radius: 16px;

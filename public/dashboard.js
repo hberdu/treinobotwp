@@ -1074,8 +1074,8 @@ function showWeekToast(iso) {
   if (window.gsap) {
     gsap.killTweensOf(toast);
     gsap.fromTo(toast,
-      { opacity: 0, x: 60, scale: .92 },
-      { opacity: 1, x: 0, scale: 1, duration: .5, ease: "back.out(1.6)" }
+      { opacity: 0, y: -40, scale: .94, xPercent: -50 },
+      { opacity: 1, y: 0, scale: 1, xPercent: -50, duration: .5, ease: "back.out(1.6)" }
     );
     gsap.from(row.children, {
       y: 14, opacity: 0,
@@ -1093,7 +1093,7 @@ function showWeekToast(iso) {
         onUpdate: () => { el.textContent = Math.round(obj.v); },
       });
     });
-    // barra de progresso (4s para auto-close)
+    // barra de progresso (5s para auto-close)
     const bar = $("#wtProgress");
     bar.innerHTML = '<i></i>';
     gsap.fromTo(bar.querySelector("i"), { scaleX: 1 }, {
@@ -1119,7 +1119,7 @@ function closeWeekToast(skipAnim) {
     return;
   }
   gsap.to(toast, {
-    opacity: 0, x: 60, scale: .92, duration: .35, ease: "power2.in",
+    opacity: 0, y: -40, scale: .94, xPercent: -50, duration: .35, ease: "power2.in",
     onComplete: () => {
       toast.hidden = true;
       gsap.set(toast, { clearProps: "all" });
