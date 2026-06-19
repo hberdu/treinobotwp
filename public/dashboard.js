@@ -161,22 +161,19 @@ function pulseSwatch(tr) {
   );
 }
 
-function highlightAthlete(name) {
+function highlightAthlete(name, opts = {}) {
   if (lastHighlight === name) return;
   lastHighlight = name;
 
-  // tabela
   let scrollRow = null;
   $$("#atletasTable tbody tr").forEach((tr) => {
     const cell = tr.querySelector(".athlete-name");
     if (cell && cell.textContent === name) {
       if (!tr.classList.contains("is-highlighted")) {
         tr.classList.add("is-highlighted");
-        tr.style.setProperty("--athlete-color", colorFor(name));
+        try { tr.style.setProperty("--athlete-color", colorFor(name)); } catch (_) {}
         pulseSwatch(tr);
-        if (window.gsap) {
-          gsap.fromTo(tr, { x: -6 }, { x: 0, duration: .4, ease: "power3.out" });
-        }
+        if (window.gsap) gsap.fromTo(tr, { x: -6 }, { x: 0, duration: .4, ease: "power3.out" });
         scrollRow = tr;
       }
     } else {
@@ -184,44 +181,21 @@ function highlightAthlete(name) {
     }
   });
 
-  if (scrollRow && typeof scrollRow.scrollIntoView === "function") {
+  if (scrollRow && opts.scroll) {
     const rect = scrollRow.getBoundingClientRect();
-    if (rect.top < 100 || rect.bottom > window.innerHeight - 40) {
+    if (rect.top < 120 || rect.bottom > window.innerHeight - 40) {
       scrollRow.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
-
-  // gráficos
-  ["chartRanking", "chartProgresso"].forEach((id) => {
-    const chart = state.charts[id];
-    if (!chart) return;
-    const idx = chart.data.labels.findIndex((l) => l === name);
-    if (idx >= 0) {
-      const elements = chart.data.datasets.map((_, dsIdx) => ({ datasetIndex: dsIdx, index: idx }));
-      chart.setActiveElements(elements);
-      chart.tooltip.setActiveElements([{ datasetIndex: 0, index: idx }], { x: 0, y: 0 });
-    } else {
-      chart.setActiveElements([]);
-      chart.tooltip.setActiveElements([], { x: 0, y: 0 });
-    }
-    chart.update("none");
-  });
 }
 
 function clearHighlight() {
   lastHighlight = null;
   $$("#atletasTable tbody tr.is-highlighted").forEach((tr) => tr.classList.remove("is-highlighted"));
-  ["chartRanking", "chartProgresso"].forEach((id) => {
-    const chart = state.charts[id];
-    if (!chart) return;
-    chart.setActiveElements([]);
-    chart.tooltip.setActiveElements([], { x: 0, y: 0 });
-    chart.update("none");
-  });
 }
 
 function bindCrossHighlight() {
-  // hover nas linhas
+  // tabela → tabela (pulse no swatch)
   const tbody = $("#atletasTable tbody");
   if (tbody && !tbody.dataset.xhBound) {
     tbody.dataset.xhBound = "1";
@@ -234,23 +208,29 @@ function bindCrossHighlight() {
     tbody.addEventListener("mouseleave", clearHighlight);
   }
 
-  // hover nos gráficos
+  // canvas → tabela (sem mexer no chart, evita update infinito)
   ["chartRanking", "chartProgresso"].forEach((id) => {
     const canvas = document.getElementById(id);
     if (!canvas || canvas.dataset.xhBound) return;
     canvas.dataset.xhBound = "1";
+
+    let lastIdx = -1;
     canvas.addEventListener("mousemove", (evt) => {
       const chart = state.charts[id];
       if (!chart) return;
       const points = chart.getElementsAtEventForMode(evt, "nearest", { intersect: true }, false);
       if (points.length) {
-        const name = chart.data.labels[points[0].index];
-        highlightAthlete(name);
-      } else {
+        const idx = points[0].index;
+        if (idx === lastIdx) return;
+        lastIdx = idx;
+        const name = chart.data.labels[idx];
+        if (name) highlightAthlete(name, { scroll: true });
+      } else if (lastIdx !== -1) {
+        lastIdx = -1;
         clearHighlight();
       }
     });
-    canvas.addEventListener("mouseleave", clearHighlight);
+    canvas.addEventListener("mouseleave", () => { lastIdx = -1; clearHighlight(); });
   });
 }
   const ctx = document.getElementById(id);
