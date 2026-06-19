@@ -280,11 +280,22 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   padding-bottom: .04em;
 }
 .hero-title .hl {
-  background: linear-gradient(120deg, var(--c-lime) 0%, var(--c-cyan) 50%, var(--c-magenta) 100%);
+  background: linear-gradient(
+    120deg,
+    color-mix(in oklab, var(--c-lime) 70%, white) 0%,
+    color-mix(in oklab, var(--c-cyan) 75%, white) 35%,
+    color-mix(in oklab, var(--c-magenta) 75%, white) 70%,
+    color-mix(in oklab, var(--c-lime) 70%, white) 100%
+  );
+  background-size: 250% auto;
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  animation: hueShift 14s linear infinite;
   font-style: italic;
+}
+@keyframes hueShift {
+  to { background-position: 250% center; }
 }
 .hero-meta {
   display: flex; align-items: center; gap: .75rem;
