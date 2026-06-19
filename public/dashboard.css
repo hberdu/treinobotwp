@@ -274,11 +274,13 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
 }
 .hero-title .line { display: block; overflow: hidden; }
 .hero-title .line .char { display: inline-block; will-change: transform; }
-.hero-title .hl {
+.hero-title .hl,
+.hero-title .hl .char {
   background: linear-gradient(120deg, var(--c-lime) 0%, var(--c-cyan) 50%, var(--c-magenta) 100%);
   background-size: 200% auto;
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
   animation: hueShift 8s linear infinite;
   font-style: italic;
 }
