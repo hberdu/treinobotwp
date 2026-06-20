@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ranking Kchaw</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #060608;
+      --surface: #0c0c10;
+      --surface-2: #14141a;
+      --surface-3: #1d1d25;
+      --border: #1c1c24;
+      --border-strong: #2a2a35;
+      --text: #f4f4f6;
+      --text-dim: #9c9ca8;
+      --text-soft: #5a5a66;
+      --accent: #c0ff3e;
+      --c-lime: #c0ff3e;
+      --c-cyan: #22d3ee;
+      --c-magenta: #f472b6;
+      --c-amber: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "cv02","cv03","cv11","ss01";
+    }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    /* container exato pra captura — fundo pintado, padding consistente */
+    .card {
+      width: 1200px;
+      background:
+        radial-gradient(ellipse 60% 40% at 80% 0%, color-mix(in oklab, var(--c-lime) 12%, transparent), transparent 60%),
+        radial-gradient(ellipse 40% 30% at 0% 100%, color-mix(in oklab, var(--c-magenta) 10%, transparent), transparent 60%),
+        var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 2rem 2.25rem 2.25rem;
+      position: relative;
+      margin: 0 auto;
+    }
+
+    .brackets::before, .brackets::after {
+      content: "";
+      position: absolute;
+      width: 16px; height: 16px;
+      border: 1.6px solid var(--accent);
+    }
+    .brackets::before {
+      top: 12px; left: 12px;
+      border-right: 0; border-bottom: 0;
+    }
+    .brackets::after {
+      bottom: 12px; right: 12px;
+      border-left: 0; border-top: 0;
+    }
+
+    .head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 1.4rem;
+    }
+    .head h1 {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 2.1rem;
+      font-weight: 700;
+      letter-spacing: -.025em;
+      margin: 0;
+    }
+    .eyebrow {
+      font-family: "JetBrains Mono", monospace;
+      font-size: .72rem;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      margin-bottom: .35rem;
+    }
+    .eyebrow::before { content: "// "; opacity: .5; }
+    .meta {
+      text-align: right;
+      font-family: "JetBrains Mono", monospace;
+      font-size: .7rem;
+      color: var(--text-soft);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      line-height: 1.6;
+    }
+    .meta b { color: var(--text); font-weight: 600; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .95rem;
+    }
+    th, td {
+      text-align: left;
+      padding: .85rem .8rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    th {
+      font-size: .68rem;
+      color: var(--text-soft);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    tbody tr:last-child td { border-bottom: 0; }
+
+    .athlete-cell {
+      display: flex; align-items: center; gap: .8rem;
+    }
+    .swatch {
+      width: 8px; height: 26px;
+      border-radius: 2px;
+      background: var(--athlete-color, var(--accent));
+      flex-shrink: 0;
+    }
+    .athlete-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .medal {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      color: var(--text-dim);
+      font-size: .8rem; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      border: 1px solid var(--border);
+    }
+    .medal.gold   { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #422006; border-color: transparent; }
+    .medal.silver { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; border-color: transparent; }
+    .medal.bronze { background: linear-gradient(135deg, #fdba74, #c2410c); color: #1c0701; border-color: transparent; }
+
+    .progress-bar {
+      display: flex; align-items: center; gap: .6rem;
+    }
+    .progress-bar .track {
+      flex: 1;
+      height: 6px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+      min-width: 110px;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      background: var(--athlete-color, var(--accent));
+      border-radius: 999px;
+    }
+    .progress-bar .fill.full {
+      background: linear-gradient(90deg, #4ade80, var(--c-lime));
+    }
+    .progress-bar .pct {
+      font-size: .85rem; color: var(--text-dim);
+      min-width: 44px; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .foot {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-family: "JetBrains Mono", monospace;
+      font-size: .7rem;
+      color: var(--text-soft);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .foot .brand {
+      display: flex; align-items: center; gap: .55rem;
+      color: var(--text-dim);
+    }
+    .foot .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="card brackets">
+    <header class="head">
+      <div>
+        <div class="eyebrow">classificação · ranking kchaw</div>
+        <h1 id="title">Ranking Kchaw</h1>
+      </div>
+      <div class="meta" id="meta">—</div>
+    </header>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Atleta</th>
+          <th class="num">Treinos</th>
+          <th class="num">Semana</th>
+          <th class="num">Meta</th>
+          <th class="num">Sem✓</th>
+          <th>Meta %</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <footer class="foot">
+      <div class="brand"><span class="dot"></span> treinos · 2026</div>
+      <div id="generatedAt"></div>
+    </footer>
+  </div>
+
+  <script>
+    const PALETTE = [
+      "#c0ff3e", "#22d3ee", "#f472b6", "#fbbf24", "#a78bfa",
+      "#fb923c", "#34d399", "#60a5fa", "#fb7185", "#facc15",
+      "#c084fc", "#2dd4bf", "#f87171", "#86efac", "#93c5fd",
+      "#fcd34d", "#f9a8d4", "#7dd3fc", "#bef264", "#fda4af",
+    ];
+    function hashCode(s) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); }
+    function colorFor(n) { return PALETTE[hashCode(String(n)) % PALETTE.length]; }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+
+    const TOKEN = new URLSearchParams(location.search).get("token") || "";
+
+    async function fetchData() {
+      const url = TOKEN ? `/api/dashboard?token=${encodeURIComponent(TOKEN)}` : "/api/dashboard";
+      const res = await fetch(url, { headers: TOKEN ? { "x-dashboard-token": TOKEN } : {} });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    }
+
+    function getWeekInfo(semanasAno) {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), 0, 1);
+      const diff = today - start;
+      const weekNo = Math.floor(diff / (1000 * 60 * 60 * 24 * 7)) + 1;
+      const dia = today.getDay();
+      const offsetSeg = dia === 0 ? -6 : 1 - dia;
+      const seg = new Date(today); seg.setDate(today.getDate() + offsetSeg);
+      const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
+      const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      return { weekNo, total: semanasAno, range: `${fmt(seg)} → ${fmt(dom)}` };
+    }
+
+    function render(data) {
+      const sem = getWeekInfo(data.semanasNoAno || 52);
+      document.getElementById("meta").innerHTML =
+        `<b>Semana ${sem.weekNo}/${sem.total}</b><br>${sem.range}`;
+
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = "";
+
+      const ordenados = [...(data.atletas || [])].sort((a, b) => {
+        if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
+        return b.treinos - a.treinos;
+      });
+
+      ordenados.forEach((a, i) => {
+        const pct = a.meta > 0 ? Math.min(100, Math.round((a.progresso / a.meta) * 100)) : 0;
+        const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+        const col = colorFor(a.nome);
+        const tr = document.createElement("tr");
+        tr.style.setProperty("--athlete-color", col);
+        tr.innerHTML = `
+          <td><span class="medal ${medal}">${i + 1}</span></td>
+          <td>
+            <div class="athlete-cell">
+              <span class="swatch"></span>
+              <span class="athlete-name">${escapeHtml(a.nome)}</span>
+            </div>
+          </td>
+          <td class="num">${a.treinos}</td>
+          <td class="num">${a.progresso}</td>
+          <td class="num">${a.meta}</td>
+          <td class="num">${a.progressoSemanal}/${data.semanasNoAno || 52}</td>
+          <td>
+            <div class="progress-bar">
+              <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:${pct}%"></div></div>
+              <span class="pct">${pct}%</span>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const now = new Date();
+      document.getElementById("generatedAt").textContent =
+        `gerado em ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+    }
+
+    (async () => {
+      try {
+        const data = await fetchData();
+        render(data);
+        await (document.fonts && document.fonts.ready);
+        window.__rankingReady = true;
+        document.body.dataset.ready = "1";
+      } catch (err) {
+        document.body.dataset.error = String(err && err.message || err);
+      }
+    })();
+  </script>
+</body>
+</html>

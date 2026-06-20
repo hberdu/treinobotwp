@@ -5,8 +5,9 @@ require('dotenv').config({ quiet: true });
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const { Client, LocalAuth } = require("whatsapp-web.js");
+const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
 const qrcodeTerminal = require("qrcode-terminal");
+const puppeteer = require("puppeteer");
 const { OpenAI } = require("openai");
 const { initializeApp } = require("firebase/app");
 const {
@@ -219,6 +220,10 @@ app.post("/api/treino", dashboardAuth, async (req, res) => {
 
 app.get("/dashboard", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
+app.get("/ranking-card", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "ranking-card.html"));
 });
 
 // ============================================
@@ -518,6 +523,82 @@ async function handleStatus(msg) {
   await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!status");
 }
 
+// ============================================
+// SCREENSHOT DO RANKING (PNG)
+// ============================================
+let _screenshotBrowser = null;
+let _screenshotBrowserPromise = null;
+
+async function getScreenshotBrowser() {
+  if (_screenshotBrowser && _screenshotBrowser.isConnected()) return _screenshotBrowser;
+  if (_screenshotBrowserPromise) return _screenshotBrowserPromise;
+  _screenshotBrowserPromise = puppeteer
+    .launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+    })
+    .then((b) => {
+      _screenshotBrowser = b;
+      _screenshotBrowserPromise = null;
+      b.on("disconnected", () => { _screenshotBrowser = null; });
+      return b;
+    })
+    .catch((err) => {
+      _screenshotBrowserPromise = null;
+      throw err;
+    });
+  return _screenshotBrowserPromise;
+}
+
+async function generateRankingPng() {
+  const browser = await getScreenshotBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: 1240, height: 1400, deviceScaleFactor: 2 });
+    const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
+    const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
+    const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
+    await page.goto(url, { waitUntil: "networkidle0", timeout: 30000 });
+    await page.waitForFunction(() => window.__rankingReady === true, { timeout: 15000 });
+    const el = await page.$(".card");
+    if (!el) throw new Error("card_not_found");
+    const buf = await el.screenshot({ type: "png", omitBackground: false });
+    return buf;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+async function sendRankingImage(msg, captionExtra) {
+  try {
+    log.info("Imagem", "Gerando PNG do ranking...");
+    const buf = await generateRankingPng();
+    const media = new MessageMedia("image/png", buf.toString("base64"), "ranking.png");
+    const caption = captionExtra ? captionExtra : undefined;
+    await msg.reply(media, undefined, { caption });
+    log.ok("Imagem", `PNG enviado (${Math.round(buf.length / 1024)} KB).`);
+  } catch (error) {
+    log.error("Imagem", "Falha ao gerar/enviar imagem:", error?.message || error);
+    await safeReply(msg, "Erro ao gerar imagem do ranking.", "ranking-img");
+  }
+}
+
+async function handleTreino2(msg, opts = {}) {
+  log.info("Handler", "Comando !treino2 detectado");
+  if (!opts.skipCatchUp) {
+    await catchUpMissedCommands(msg);
+  }
+  const nomeUsuario = await getNomeUsuario(msg.author);
+  log.info("Handler", `Usuário: ${nomeUsuario}`);
+  await inserirAtleta(nomeUsuario);
+  await sendRankingImage(msg, `Ranking atualizado · ${nomeUsuario}`);
+}
+
+async function handleStatus2(msg) {
+  log.info("Handler", "Comando !status2 detectado");
+  await sendRankingImage(msg);
+}
+
 async function handlePergunta(msg) {
   const body = msg.body;
   const prefixo = body.startsWith("!p ") ? "!p " : "!pergunta ";
@@ -545,6 +626,8 @@ async function handleDashboard(msg) {
 }
 
 const COMMAND_HANDLERS = [
+  { match: (body) => body.startsWith("!treino2"), handler: handleTreino2, label: "!treino2" },
+  { match: (body) => body.startsWith("!status2"), handler: handleStatus2, label: "!status2" },
   { match: (body) => body.startsWith("!treino"), handler: handleTreino, label: "!treino" },
   { match: (body) => body.startsWith("!status"), handler: handleStatus, label: "!status" },
   { match: (body) => body.startsWith("!dashboard") || body.startsWith("!painel"), handler: handleDashboard, label: "!dashboard" },
@@ -592,6 +675,7 @@ async function shutdown(signal) {
   try {
     if (reconnectTimer) clearTimeout(reconnectTimer);
     await client.destroy().catch(() => {});
+    if (_screenshotBrowser) await _screenshotBrowser.close().catch(() => {});
   } finally {
     log.info("Process", `Shutdown concluído (${signal}). Encerrando.`);
     process.exit(0);
@@ -606,8 +690,10 @@ initializeClient();
 // ============================================
 // SERVIDOR HTTP COM TRATAMENTO DE EADDRINUSE
 // ============================================
+let currentHttpPort = null;
 function startHttpServer(portToUse, attempt = 1) {
   const server = app.listen(portToUse, () => {
+    currentHttpPort = portToUse;
     log.ok("HTTP", `Servidor iniciado na porta ${portToUse}`);
   });
 
