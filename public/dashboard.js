@@ -946,8 +946,7 @@ function renderAthlete() {
   }
 }
 
-// ===================== HEATMAP (colunas semanais) =====================
-const WEEK_COLS = 26;
+// ===================== HEATMAP (ano inteiro, estilo GitHub) =====================
 const HEATMAP_STATE = { weeks: [], openWeek: null, toastTimer: null };
 
 function renderAthleteHeatmap(treinos) {
@@ -956,17 +955,26 @@ function renderAthleteHeatmap(treinos) {
   const tooltip = $("#hmTooltip");
 
   const today = startOfDay(new Date());
+  const year = today.getFullYear();
 
-  // segunda da semana atual
-  const dayOfWeek = today.getDay();
-  const daysSinceMonday = (dayOfWeek + 6) % 7;
-  const currentMonday = new Date(today);
-  currentMonday.setDate(currentMonday.getDate() - daysSinceMonday);
+  // ano inteiro: de 1º de janeiro até 31 de dezembro
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
 
-  const start = new Date(currentMonday);
-  start.setDate(start.getDate() - (WEEK_COLS - 1) * 7);
-  const end = new Date(currentMonday);
-  end.setDate(end.getDate() + 6); // domingo
+  // alinha início na segunda-feira ≤ 1º de janeiro
+  const startDow = yearStart.getDay();
+  const daysBackToMonday = (startDow + 6) % 7;
+  const start = new Date(yearStart);
+  start.setDate(start.getDate() - daysBackToMonday);
+
+  // alinha fim no domingo ≥ 31 de dezembro
+  const endDow = yearEnd.getDay();
+  const daysForwardToSunday = (7 - endDow) % 7;
+  const end = new Date(yearEnd);
+  end.setDate(end.getDate() + daysForwardToSunday);
+
+  const totalDays = Math.round((end - start) / 86400000) + 1;
+  const totalCols = Math.ceil(totalDays / 7);
 
   const counts = {};
   for (const t of treinos) {
@@ -987,19 +995,22 @@ function renderAthleteHeatmap(treinos) {
   const dayLabels = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
   const cells = [];
 
-  for (let col = 0; col < WEEK_COLS; col++) {
+  for (let col = 0; col < totalCols; col++) {
     const colMonday = new Date(start);
     colMonday.setDate(colMonday.getDate() + col * 7);
 
-    // mês baseado em quinta-feira (mais estável)
+    // label de mês baseada na quinta-feira da semana, contando só meses do ano atual
     const colThursday = new Date(colMonday);
     colThursday.setDate(colThursday.getDate() + 3);
-    if (colThursday.getMonth() !== curMonthIdx) {
+    const thMonthInYear = (colThursday.getFullYear() === year);
+    const thMonth = thMonthInYear ? colThursday.getMonth() : -1;
+    if (thMonth !== curMonthIdx && thMonthInYear) {
       monthsSpan.push({
         label: colThursday.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
         cols: 1,
+        startCol: col,
       });
-      curMonthIdx = colThursday.getMonth();
+      curMonthIdx = thMonth;
     } else if (monthsSpan.length) {
       monthsSpan[monthsSpan.length - 1].cols++;
     }
@@ -1015,6 +1026,7 @@ function renderAthleteHeatmap(treinos) {
       d.setDate(d.getDate() + r);
       const key = inputDateValue(d);
       const v = counts[key] || 0;
+      const inYear = (d >= yearStart && d <= yearEnd);
 
       if (v > 0) {
         totalTreinos += v; activeDays++; curStreak++;
@@ -1027,6 +1039,7 @@ function renderAthleteHeatmap(treinos) {
 
       const cell = document.createElement("div");
       cell.className = "cell";
+      if (!inYear) cell.classList.add("is-blank"); // dias fora do ano (padding)
       if (v === 1) cell.classList.add("l1");
       else if (v === 2) cell.classList.add("l2");
       else if (v === 3) cell.classList.add("l3");
@@ -1037,25 +1050,27 @@ function renderAthleteHeatmap(treinos) {
       cell.dataset.dateLabel = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
       cell.dataset.rel = fmtRelative(d);
 
-      cell.addEventListener("mouseenter", () => {
-        tooltip.hidden = false;
-        tooltip.querySelector(".hmt-date").textContent = cell.dataset.dateLabel;
-        tooltip.querySelector(".hmt-count").innerHTML = v > 0
-          ? `${v} <span class="hmt-meta">treino${v !== 1 ? "s" : ""}</span>`
-          : `<span class="hmt-meta">sem treino</span>`;
-        tooltip.querySelector(".hmt-rel").textContent = cell.dataset.rel;
-        const r2 = cell.getBoundingClientRect();
-        tooltip.style.left = (r2.left + r2.width / 2) + "px";
-        tooltip.style.top = r2.top + "px";
-        if (window.gsap) gsap.fromTo(tooltip, { opacity: 0, y: -4 }, { opacity: 1, y: -8, duration: .18, ease: "power2.out" });
-      });
-      cell.addEventListener("mouseleave", () => {
-        if (window.gsap) gsap.to(tooltip, { opacity: 0, duration: .15, onComplete: () => { tooltip.hidden = true; } });
-        else tooltip.hidden = true;
-      });
+      if (inYear) {
+        cell.addEventListener("mouseenter", () => {
+          tooltip.hidden = false;
+          tooltip.querySelector(".hmt-date").textContent = cell.dataset.dateLabel;
+          tooltip.querySelector(".hmt-count").innerHTML = v > 0
+            ? `${v} <span class="hmt-meta">treino${v !== 1 ? "s" : ""}</span>`
+            : `<span class="hmt-meta">sem treino</span>`;
+          tooltip.querySelector(".hmt-rel").textContent = cell.dataset.rel;
+          const r2 = cell.getBoundingClientRect();
+          tooltip.style.left = (r2.left + r2.width / 2) + "px";
+          tooltip.style.top = r2.top + "px";
+          if (window.gsap) gsap.fromTo(tooltip, { opacity: 0, y: -4 }, { opacity: 1, y: -8, duration: .18, ease: "power2.out" });
+        });
+        cell.addEventListener("mouseleave", () => {
+          if (window.gsap) gsap.to(tooltip, { opacity: 0, duration: .15, onComplete: () => { tooltip.hidden = true; } });
+          else tooltip.hidden = true;
+        });
+      }
 
       colEl.appendChild(cell);
-      days.push({ date: new Date(d), count: v, label: dayLabels[r], isToday: key === todayKey });
+      days.push({ date: new Date(d), count: v, label: dayLabels[r], isToday: key === todayKey, inYear });
       cells.push(cell);
     }
 
@@ -1065,13 +1080,15 @@ function renderAthleteHeatmap(treinos) {
     container.appendChild(colEl);
   }
 
-  // months header alinhado (18px col + 5px gap entre colunas)
+  // CSS variable com o número de colunas, para o grid distribuir uniformemente
+  container.style.setProperty("--week-cols", totalCols);
+
+  // months header com proporção em fr (acompanha o grid do heatmap)
   const monthsEl = $("#hmMonths");
   monthsEl.innerHTML = "";
-  monthsSpan.forEach((m, i) => {
+  monthsSpan.forEach((m) => {
     const s = document.createElement("span");
-    const widthPerCol = 18 + 5;
-    s.style.width = (m.cols * widthPerCol - 5 + (i === 0 ? 0 : 5)) + "px";
+    s.style.flex = `${m.cols} 0 0`;
     s.textContent = m.label;
     monthsEl.appendChild(s);
   });
@@ -1082,6 +1099,7 @@ function renderAthleteHeatmap(treinos) {
   const dayNamesShort = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const favDowIdx = perDow.indexOf(Math.max(...perDow));
   const favDowCount = perDow[favDowIdx] || 0;
+  const weeksInYear = totalCols;
 
   animateCounter($("#hmTotal"), totalTreinos);
   animateCounter($("#hmActiveDays"), activeDays);
@@ -1090,15 +1108,14 @@ function renderAthleteHeatmap(treinos) {
   animateCounter($("#hmLongestStreak"), longestStreak);
   $("#hmFavDay").textContent = favDowCount ? dayNamesShort[favDowIdx] : "—";
   $("#hmFavDayCount").textContent = favDowCount ? `${favDowCount} treinos` : "—";
-  $("#hmAvgWeek").textContent = (totalTreinos / WEEK_COLS).toFixed(1);
+  $("#hmAvgWeek").textContent = (totalTreinos / weeksInYear).toFixed(1);
 
-  $("#heatmapPeriod").textContent =
-    `${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} → ${end.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`;
+  $("#heatmapPeriod").textContent = `Jan → Dez · ${year}`;
 
   closeWeekToast(true);
 
   if (window.gsap) {
-    gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .0015, from: "start" }, duration: .3, ease: "back.out(2)" });
+    gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .001, from: "start" }, duration: .3, ease: "back.out(2)" });
   }
 }
 
