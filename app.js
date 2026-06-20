@@ -562,8 +562,13 @@ async function generateRankingPng() {
     await page.waitForFunction(() => window.__rankingReady === true, { timeout: 15000 });
     const el = await page.$(".card");
     if (!el) throw new Error("card_not_found");
-    const buf = await el.screenshot({ type: "png", omitBackground: false });
-    return buf;
+    // pede direto em base64 para evitar reencode (Buffer.toString pode incluir \n em algumas envs)
+    const base64 = await el.screenshot({ type: "png", encoding: "base64", omitBackground: false });
+    if (!base64 || typeof base64 !== "string" || base64.length < 100) {
+      throw new Error(`invalid_screenshot_output (len=${base64 ? base64.length : 0})`);
+    }
+    // sanitiza eventual whitespace/quebras
+    return base64.replace(/\s+/g, "");
   } finally {
     await page.close().catch(() => {});
   }
@@ -572,11 +577,12 @@ async function generateRankingPng() {
 async function sendRankingImage(msg, captionExtra) {
   try {
     log.info("Imagem", "Gerando PNG do ranking...");
-    const buf = await generateRankingPng();
-    const media = new MessageMedia("image/png", buf.toString("base64"), "ranking.png");
-    const caption = captionExtra ? captionExtra : undefined;
-    await msg.reply(media, undefined, { caption });
-    log.ok("Imagem", `PNG enviado (${Math.round(buf.length / 1024)} KB).`);
+    const base64 = await generateRankingPng();
+    const media = new MessageMedia("image/png", base64, "ranking.png");
+    const sendOptions = { sendMediaAsDocument: false };
+    if (captionExtra) sendOptions.caption = captionExtra;
+    await msg.reply(media, undefined, sendOptions);
+    log.ok("Imagem", `PNG enviado (${Math.round((base64.length * 3) / 4 / 1024)} KB).`);
   } catch (error) {
     log.error("Imagem", "Falha ao gerar/enviar imagem:", error?.message || error);
     await safeReply(msg, "Erro ao gerar imagem do ranking.", "ranking-img");
