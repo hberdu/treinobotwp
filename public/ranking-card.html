@@ -12,11 +12,11 @@
       --surface: #0c0c10;
       --surface-2: #14141a;
       --surface-3: #1d1d25;
-      --border: #1c1c24;
+      --border: #1f1f28;
       --border-strong: #2a2a35;
       --text: #f4f4f6;
-      --text-dim: #9c9ca8;
-      --text-soft: #6b6b78;
+      --text-dim: #b4b4c0;
+      --text-soft: #7a7a86;
       --accent: #c0ff3e;
       --c-lime: #c0ff3e;
       --c-cyan: #22d3ee;
@@ -34,15 +34,18 @@
     }
     .mono { font-family: "JetBrains Mono", monospace; }
 
+    /* ===== CARD =====
+       largura otimizada para preview no WhatsApp (~720px renderiza bem)
+       fontes pensadas para serem legíveis a ~360px de visualização */
     .card {
-      width: 1200px;
+      width: 720px;
       background:
-        radial-gradient(ellipse 60% 40% at 80% 0%, color-mix(in oklab, var(--c-lime) 12%, transparent), transparent 60%),
-        radial-gradient(ellipse 40% 30% at 0% 100%, color-mix(in oklab, var(--c-magenta) 10%, transparent), transparent 60%),
+        radial-gradient(ellipse 70% 50% at 100% 0%, color-mix(in oklab, var(--c-lime) 14%, transparent), transparent 60%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, color-mix(in oklab, var(--c-magenta) 12%, transparent), transparent 60%),
         var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 22px;
-      padding: 2.4rem 2.6rem 2.6rem;
+      border: 2px solid var(--border);
+      border-radius: 28px;
+      padding: 2.2rem 2rem 2rem;
       position: relative;
       margin: 0 auto;
     }
@@ -50,136 +53,170 @@
     .brackets::before, .brackets::after {
       content: "";
       position: absolute;
-      width: 20px; height: 20px;
-      border: 2px solid var(--accent);
+      width: 22px; height: 22px;
+      border: 2.4px solid var(--accent);
     }
     .brackets::before { top: 14px; left: 14px; border-right: 0; border-bottom: 0; }
     .brackets::after  { bottom: 14px; right: 14px; border-left: 0; border-top: 0; }
 
     .head {
       display: flex; align-items: flex-end; justify-content: space-between;
-      margin-bottom: 1.6rem;
-      gap: 2rem;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
     }
     .head h1 {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 2.6rem;
+      font-size: 3rem;
       font-weight: 700;
-      letter-spacing: -.025em;
+      letter-spacing: -.03em;
       margin: 0;
+      line-height: 1;
     }
     .eyebrow {
       font-family: "JetBrains Mono", monospace;
-      font-size: .82rem;
+      font-size: 1rem;
       color: var(--text-soft);
       text-transform: uppercase;
-      letter-spacing: .18em;
-      margin-bottom: .4rem;
+      letter-spacing: .16em;
+      margin-bottom: .5rem;
     }
     .eyebrow::before { content: "// "; opacity: .55; }
     .meta {
       text-align: right;
       font-family: "JetBrains Mono", monospace;
-      font-size: .85rem;
+      font-size: 1rem;
       color: var(--text-soft);
-      letter-spacing: .12em;
+      letter-spacing: .1em;
       text-transform: uppercase;
-      line-height: 1.7;
+      line-height: 1.5;
+      white-space: nowrap;
     }
-    .meta b { color: var(--text); font-weight: 600; }
+    .meta b { color: var(--text); font-weight: 600; font-size: 1.1rem; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 1.25rem;
-    }
-    thead th {
-      text-align: left;
-      padding: 1rem .9rem .85rem;
-      font-size: .78rem;
-      color: var(--text-soft);
-      letter-spacing: .14em;
-      text-transform: uppercase;
-      font-weight: 500;
+    /* ===== LIST (substitui a tabela) ===== */
+    .list { display: flex; flex-direction: column; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      grid-template-rows: auto auto;
+      grid-template-areas:
+        "medal name stats"
+        "bar   bar  bar";
+      align-items: center;
+      gap: .35rem 1rem;
+      padding: 1rem .25rem .9rem;
       border-bottom: 1px solid var(--border);
     }
-    th.num { text-align: right; }
+    .row:last-child { border-bottom: 0; }
 
-    tbody td {
-      padding: .85rem .9rem .4rem;
-      vertical-align: middle;
-      font-variant-numeric: tabular-nums;
-    }
-    td.num { text-align: right; }
-
-    .athlete-name {
-      font-weight: 600;
-      color: var(--text);
-      font-size: 1.3rem;
-    }
-    .athlete-cell {
-      display: flex; align-items: center; gap: 1rem;
-    }
-    .swatch {
-      width: 10px; height: 36px;
-      border-radius: 3px;
-      background: var(--athlete-color, var(--accent));
-      flex-shrink: 0;
-    }
-    .medal {
+    .row .medal {
+      grid-area: medal;
       display: inline-flex; align-items: center; justify-content: center;
-      width: 40px; height: 40px;
+      width: 48px; height: 48px;
       border-radius: 50%;
       background: var(--surface-2);
       color: var(--text-dim);
-      font-size: 1rem; font-weight: 700;
+      font-size: 1.3rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
+      font-family: "Space Grotesk", sans-serif;
     }
     .medal.gold   { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #422006; border-color: transparent; }
     .medal.silver { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; border-color: transparent; }
     .medal.bronze { background: linear-gradient(135deg, #fdba74, #c2410c); color: #1c0701; border-color: transparent; }
 
-    /* progress row abaixo de cada linha do atleta */
-    .progress-row td {
-      padding: 0 .9rem 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-    tbody tr.progress-row:last-child td { border-bottom: 0; }
-    .progress-bar {
+    .row .athlete {
+      grid-area: name;
       display: flex; align-items: center; gap: 1rem;
+      min-width: 0;
     }
-    .progress-bar .track {
+    .swatch {
+      width: 10px; height: 44px;
+      border-radius: 3px;
+      background: var(--athlete-color, var(--accent));
+      flex-shrink: 0;
+    }
+    .name {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: var(--text);
+      line-height: 1.05;
+      word-break: break-word;
+    }
+
+    .row .stats {
+      grid-area: stats;
+      display: flex;
+      align-items: flex-end;
+      gap: 1.6rem;
+      padding-left: .5rem;
+    }
+    .stat {
+      display: flex; flex-direction: column; align-items: flex-end;
+      gap: .15rem;
+    }
+    .stat .v {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: var(--text);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat .v .small { font-size: .9rem; color: var(--text-soft); font-weight: 500; margin-left: .15rem; }
+    .stat .l {
+      font-family: "JetBrains Mono", monospace;
+      font-size: .7rem;
+      color: var(--text-soft);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .stat .v.accent { color: var(--athlete-color); }
+
+    /* ===== PROGRESS BAR FULL-WIDTH ===== */
+    .progress {
+      grid-area: bar;
+      display: flex; align-items: center; gap: .85rem;
+      margin-top: .35rem;
+      padding-left: 4px;
+    }
+    .progress .track {
       flex: 1;
-      height: 8px;
+      height: 10px;
       background: var(--surface-2);
       border-radius: 999px;
       overflow: hidden;
     }
-    .progress-bar .fill {
+    .progress .fill {
       height: 100%;
       background: var(--athlete-color, var(--accent));
       border-radius: 999px;
     }
-    .progress-bar .fill.full {
+    .progress .fill.full {
       background: linear-gradient(90deg, #4ade80, var(--c-lime));
     }
-    .progress-bar .pct {
-      font-size: 1rem;
+    .progress .pct {
+      font-family: "JetBrains Mono", monospace;
+      font-size: .95rem;
       color: var(--text-dim);
       min-width: 56px;
       text-align: right;
       font-variant-numeric: tabular-nums;
-      font-weight: 500;
+      font-weight: 600;
     }
 
+    /* ===== FOOTER ===== */
     .foot {
       display: flex; justify-content: space-between; align-items: center;
-      margin-top: 1.5rem;
-      padding-top: 1.25rem;
+      margin-top: 1.25rem;
+      padding-top: 1.1rem;
       border-top: 1px solid var(--border);
       font-family: "JetBrains Mono", monospace;
-      font-size: .82rem;
+      font-size: .85rem;
       color: var(--text-soft);
       letter-spacing: .1em;
       text-transform: uppercase;
@@ -205,19 +242,7 @@
       <div class="meta" id="meta">—</div>
     </header>
 
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 60px">#</th>
-          <th>Atleta</th>
-          <th class="num">Treinos</th>
-          <th class="num">Semana</th>
-          <th class="num">Meta</th>
-          <th class="num">Sem ✓</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+    <div class="list" id="list"></div>
 
     <footer class="foot">
       <div class="brand"><span class="dot"></span> treinos · 2026</div>
@@ -264,8 +289,8 @@
       document.getElementById("meta").innerHTML =
         `<b>Semana ${sem.weekNo}/${sem.total}</b><br>${sem.range}`;
 
-      const tbody = document.getElementById("tbody");
-      tbody.innerHTML = "";
+      const list = document.getElementById("list");
+      list.innerHTML = "";
 
       const ordenados = [...(data.atletas || [])].sort((a, b) => {
         if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
@@ -277,36 +302,35 @@
         const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
         const col = colorFor(a.nome);
 
-        const tr = document.createElement("tr");
-        tr.style.setProperty("--athlete-color", col);
-        tr.innerHTML = `
-          <td><span class="medal ${medal}">${i + 1}</span></td>
-          <td>
-            <div class="athlete-cell">
-              <span class="swatch"></span>
-              <span class="athlete-name">${escapeHtml(a.nome)}</span>
+        const row = document.createElement("div");
+        row.className = "row";
+        row.style.setProperty("--athlete-color", col);
+        row.innerHTML = `
+          <span class="medal ${medal}">${i + 1}</span>
+          <div class="athlete">
+            <span class="swatch"></span>
+            <span class="name">${escapeHtml(a.nome)}</span>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <span class="v accent">${a.progressoSemanal}</span>
+              <span class="l">Sem ✓</span>
             </div>
-          </td>
-          <td class="num">${a.treinos}</td>
-          <td class="num">${a.progresso}</td>
-          <td class="num">${a.meta}</td>
-          <td class="num">${a.progressoSemanal}/${data.semanasNoAno || 52}</td>
-        `;
-
-        const progressTr = document.createElement("tr");
-        progressTr.className = "progress-row";
-        progressTr.style.setProperty("--athlete-color", col);
-        progressTr.innerHTML = `
-          <td colspan="6">
-            <div class="progress-bar">
-              <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:${pct}%"></div></div>
-              <span class="pct">${pct}%</span>
+            <div class="stat">
+              <span class="v">${a.progresso}<span class="small">/${a.meta}</span></span>
+              <span class="l">Semana</span>
             </div>
-          </td>
+            <div class="stat">
+              <span class="v">${a.treinos}</span>
+              <span class="l">Total</span>
+            </div>
+          </div>
+          <div class="progress">
+            <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:${pct}%"></div></div>
+            <span class="pct">${pct}%</span>
+          </div>
         `;
-
-        tbody.appendChild(tr);
-        tbody.appendChild(progressTr);
+        list.appendChild(row);
       });
 
       const now = new Date();

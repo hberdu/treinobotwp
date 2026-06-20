@@ -554,7 +554,9 @@ async function generateRankingPng() {
   const browser = await getScreenshotBrowser();
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: 1240, height: 1400, deviceScaleFactor: 2 });
+    // largura otimizada para preview no WhatsApp (~720px renderiza nítido)
+    // deviceScaleFactor=2 dobra a densidade → PNG sai com 1440px de largura real
+    await page.setViewport({ width: 760, height: 1600, deviceScaleFactor: 2 });
     const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
     const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
     const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
