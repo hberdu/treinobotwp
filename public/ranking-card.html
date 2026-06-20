@@ -33,16 +33,15 @@
     }
     .mono { font-family: "JetBrains Mono", monospace; }
 
-    /* Card mais quadrado: WhatsApp não corta imagens próximas de 1:1 / 4:5 */
     .card {
-      width: 900px;
+      width: 1000px;
       background:
         radial-gradient(ellipse 60% 50% at 100% 0%, color-mix(in oklab, var(--c-lime) 12%, transparent), transparent 60%),
         radial-gradient(ellipse 50% 40% at 0% 100%, color-mix(in oklab, var(--c-magenta) 10%, transparent), transparent 60%),
         var(--surface);
       border: 2px solid var(--border);
       border-radius: 24px;
-      padding: 2rem 2rem 1.6rem;
+      padding: 1.8rem 1.8rem 1.4rem;
       position: relative;
       margin: 0 auto;
     }
@@ -90,48 +89,77 @@
     }
     .meta b { color: var(--text); font-weight: 600; font-size: 1rem; }
 
-    /* GRID 2 COLUNAS (lado a lado) para reduzir altura */
+    /* GRID 2 COLUNAS — column-flow para a ordem ficar vertical
+       (1/5, 2/6, 3/7, 4/8 em vez de 1/2, 3/4) */
     .list {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .55rem 1rem;
+      column-count: 2;
+      column-gap: 1rem;
     }
-
     .row {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      -webkit-column-break-inside: avoid;
       display: grid;
-      grid-template-columns: 44px 1fr auto;
+      grid-template-columns: 48px 1fr auto;
       align-items: center;
       gap: .85rem;
-      padding: .75rem .75rem;
+      padding: .85rem .9rem .85rem .85rem;
       background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      min-height: 64px;
+      border-radius: 14px;
+      margin-bottom: .6rem;
       position: relative;
+      overflow: hidden;
     }
     .row::before {
       content: "";
       position: absolute;
       left: 0; top: 0; bottom: 0;
-      width: 3px;
+      width: 4px;
       background: var(--athlete-color);
-      border-radius: 12px 0 0 12px;
     }
 
+    /* ===== MEDALHAS PREMIUM ===== */
     .medal {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px;
+      width: 42px; height: 42px;
       border-radius: 50%;
       background: var(--surface-3);
       color: var(--text-dim);
-      font-size: 1rem; font-weight: 700;
+      font-size: 1.1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
       border: 1.5px solid var(--border);
       font-family: "Space Grotesk", sans-serif;
+      position: relative;
     }
-    .medal.gold   { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #422006; border-color: transparent; }
-    .medal.silver { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; border-color: transparent; }
-    .medal.bronze { background: linear-gradient(135deg, #fdba74, #c2410c); color: #1c0701; border-color: transparent; }
+    .medal.podium {
+      color: #0a0a0a;
+      border: 0;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.5),
+        inset 0 -2px 0 rgba(0,0,0,.2),
+        0 6px 16px -4px var(--medal-glow, transparent);
+    }
+    .medal.podium::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,.35);
+      pointer-events: none;
+    }
+    .medal.gold {
+      background: radial-gradient(circle at 30% 25%, #fef9c3, #facc15 45%, #b45309 100%);
+      --medal-glow: rgba(250, 204, 21, 0.55);
+    }
+    .medal.silver {
+      background: radial-gradient(circle at 30% 25%, #f8fafc, #cbd5e1 45%, #475569 100%);
+      --medal-glow: rgba(203, 213, 225, 0.45);
+    }
+    .medal.bronze {
+      background: radial-gradient(circle at 30% 25%, #fed7aa, #ea580c 45%, #7c2d12 100%);
+      --medal-glow: rgba(234, 88, 12, 0.5);
+    }
 
     .main {
       display: flex; flex-direction: column;
@@ -140,7 +168,7 @@
     }
     .name {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
       letter-spacing: -.015em;
       color: var(--text);
@@ -169,39 +197,51 @@
     }
     .progress .pct {
       font-family: "JetBrains Mono", monospace;
-      font-size: .75rem;
+      font-size: .72rem;
       color: var(--text-soft);
-      min-width: 36px;
+      min-width: 34px;
       text-align: right;
       font-variant-numeric: tabular-nums;
       font-weight: 600;
     }
 
+    /* lado direito: 2 mini stats empilhadas */
     .stats {
-      display: flex; flex-direction: column; align-items: flex-end;
-      gap: .15rem;
-      padding-left: .5rem;
+      display: flex; flex-direction: column;
+      gap: .35rem;
+      padding-left: .25rem;
+      align-items: flex-end;
     }
-    .stat-main {
-      font-family: "Space Grotesk", sans-serif;
-      font-size: 1.4rem;
-      font-weight: 700;
-      letter-spacing: -.02em;
-      color: var(--athlete-color);
+    .stat {
+      display: flex; align-items: baseline; gap: .35rem;
       line-height: 1;
-      font-variant-numeric: tabular-nums;
     }
-    .stat-sub {
+    .stat-title {
       font-family: "JetBrains Mono", monospace;
-      font-size: .65rem;
+      font-size: .58rem;
       color: var(--text-soft);
-      letter-spacing: .12em;
+      letter-spacing: .14em;
       text-transform: uppercase;
     }
+    .stat-val {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-val .small {
+      font-size: .68rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      margin-left: .1rem;
+    }
+    .stat-val.accent { color: var(--athlete-color); }
 
     .foot {
       display: flex; justify-content: space-between; align-items: center;
-      margin-top: 1.25rem;
+      margin-top: 1.1rem;
       padding-top: 1rem;
       border-top: 1px solid var(--border);
       font-family: "JetBrains Mono", monospace;
@@ -283,14 +323,15 @@
 
       ordenados.forEach((a, i) => {
         const pct = a.meta > 0 ? Math.min(100, Math.round((a.progresso / a.meta) * 100)) : 0;
-        const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+        const podium = i < 3;
+        const medalClass = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
         const col = colorFor(a.nome);
 
         const row = document.createElement("div");
         row.className = "row";
         row.style.setProperty("--athlete-color", col);
         row.innerHTML = `
-          <span class="medal ${medal}">${i + 1}</span>
+          <span class="medal ${podium ? "podium " + medalClass : ""}">${i + 1}</span>
           <div class="main">
             <div class="name">${escapeHtml(a.nome)}</div>
             <div class="progress">
@@ -299,8 +340,14 @@
             </div>
           </div>
           <div class="stats">
-            <span class="stat-main">${a.progressoSemanal}</span>
-            <span class="stat-sub">Sem ✓</span>
+            <div class="stat">
+              <span class="stat-title">SEM</span>
+              <span class="stat-val">${a.progresso}<span class="small">/${a.meta}</span></span>
+            </div>
+            <div class="stat">
+              <span class="stat-title">TOT</span>
+              <span class="stat-val accent">${a.treinos}<span class="small">/${a.progressoSemanal}sem</span></span>
+            </div>
           </div>
         `;
         list.appendChild(row);

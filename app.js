@@ -554,8 +554,8 @@ async function generateRankingPng() {
   const browser = await getScreenshotBrowser();
   const page = await browser.newPage();
   try {
-    // Card 900px com grid de 2 colunas (fica mais quadrado, melhor preview no WhatsApp)
-    await page.setViewport({ width: 940, height: 1000, deviceScaleFactor: 2 });
+    // Card 1000px com colunas verticais (2 colunas, ordem 1/5, 2/6...)
+    await page.setViewport({ width: 1040, height: 1000, deviceScaleFactor: 2 });
     const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
     const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
     const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
@@ -569,7 +569,7 @@ async function generateRankingPng() {
       return { w: Math.ceil(rect.width), h: Math.ceil(rect.height) };
     });
     await page.setViewport({
-      width: Math.max(940, dims.w + 40),
+      width: Math.max(1040, dims.w + 40),
       height: dims.h + 80,
       deviceScaleFactor: 2,
     });
