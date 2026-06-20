@@ -582,7 +582,7 @@ async function generateRankingPng() {
   const page = await browser.newPage();
   try {
     // Viewport único, grande o suficiente para acomodar todos os atletas
-    await page.setViewport({ width: 1440, height: 1800, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 1640, height: 1800, deviceScaleFactor: 2 });
     const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
     const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
     const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
