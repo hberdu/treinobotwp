@@ -158,8 +158,21 @@ app.get("/api/treinos", dashboardAuth, async (req, res) => {
   }
 });
 
-app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
-  try {
+// Cache em memória do payload do dashboard. Invalidado quando um treino é
+// registrado (handleTreino / handleTreino2 / POST /api/treino).
+const DASHBOARD_CACHE_TTL_MS = 60_000;
+let dashboardCache = { data: null, expiresAt: 0, building: null };
+
+function invalidateDashboardCache() {
+  dashboardCache = { data: null, expiresAt: 0, building: null };
+}
+
+async function loadDashboardPayload() {
+  const now = Date.now();
+  if (dashboardCache.data && dashboardCache.expiresAt > now) return dashboardCache.data;
+  if (dashboardCache.building) return dashboardCache.building;
+
+  dashboardCache.building = (async () => {
     const [atletasSnap, treinosSnap] = await Promise.all([
       getDocs(collection(db, "atletas2026")),
       getDocs(collection(db, "data-treino")),
@@ -188,13 +201,27 @@ app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
     });
     treinos.sort((a, b) => new Date(a.data) - new Date(b.data));
 
-    res.json({
+    const payload = {
       atletas,
       treinos,
       meta: CONFIG.META_PADRAO,
       semanasNoAno: CONFIG.SEMANAS_NO_ANO,
       generatedAt: ts(),
-    });
+    };
+    dashboardCache = { data: payload, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS, building: null };
+    return payload;
+  })().catch((err) => {
+    dashboardCache.building = null;
+    throw err;
+  });
+
+  return dashboardCache.building;
+}
+
+app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
+  try {
+    const payload = await loadDashboardPayload();
+    res.json(payload);
   } catch (error) {
     log.error("API/dashboard", error?.message || error);
     res.status(500).json({ error: "failed_to_load_dashboard" });
@@ -554,25 +581,15 @@ async function generateRankingPng() {
   const browser = await getScreenshotBrowser();
   const page = await browser.newPage();
   try {
-    // Card 1240px com colunas verticais (2 colunas, ordem 1/8, 2/9...)
-    await page.setViewport({ width: 1280, height: 1000, deviceScaleFactor: 2 });
+    // Viewport único, grande o suficiente para acomodar todos os atletas
+    await page.setViewport({ width: 1440, height: 1800, deviceScaleFactor: 2 });
     const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
     const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
     const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 30000 });
-    await page.waitForFunction(() => window.__rankingReady === true, { timeout: 15000 });
-
-    // Mede o tamanho real e ajusta o viewport para captura limpa
-    const dims = await page.evaluate(() => {
-      const el = document.querySelector(".card");
-      const rect = el.getBoundingClientRect();
-      return { w: Math.ceil(rect.width), h: Math.ceil(rect.height) };
-    });
-    await page.setViewport({
-      width: Math.max(1280, dims.w + 40),
-      height: dims.h + 80,
-      deviceScaleFactor: 2,
-    });
+    // domcontentloaded é mais rápido que networkidle0 e a página já sinaliza
+    // __rankingReady quando os dados e as fontes estão prontos
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await page.waitForFunction(() => window.__rankingReady === true, { timeout: 10000 });
 
     const el = await page.$(".card");
     if (!el) throw new Error("card_not_found");
@@ -771,6 +788,7 @@ async function inserirAtleta(nomeUsuario) {
         meta,
       });
       log.ok("inserirAtleta", `Atleta ${nomeUsuario} atualizado. Treinos: ${novoNumeroTreinos}, Progresso: ${progresso}`);
+      invalidateDashboardCache();
 
       return `Número de treinos de ${nomeUsuario} atualizado para ${novoNumeroTreinos}.`;
     }
@@ -785,6 +803,7 @@ async function inserirAtleta(nomeUsuario) {
     });
     await insertNewTraining(nomeUsuario);
     log.ok("inserirAtleta", `Novo atleta ${nomeUsuario} criado com sucesso`);
+    invalidateDashboardCache();
     return `Atleta ${nomeUsuario}, seu primeiro treino foi gerado.`;
   } catch (error) {
     log.error("inserirAtleta", "Erro ao inserir/atualizar atleta:", error?.message || error);
