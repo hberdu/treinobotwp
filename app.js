@@ -430,6 +430,12 @@ client.on("remote_session_saved", () => {
 client.on("ready", () => {
   log.ok("Cliente", "READY! Bot online e aguardando mensagens.");
   reconnectAttempt = 0;
+  // Pré-aquece o browser de screenshots e popula o cache do dashboard
+  // para que o primeiro !treino/!status não pague o custo de cold start.
+  setTimeout(() => {
+    prewarmScreenshot();
+    loadDashboardPayload().catch(() => {});
+  }, 2000);
 });
 
 client.on("change_state", (state) => {
@@ -531,30 +537,35 @@ async function catchUpMissedCommands(currentMsg) {
   }
 }
 
-async function handleTreino(msg, opts = {}) {
-  log.info("Handler", "Comando !treino detectado");
-  if (!opts.skipCatchUp) {
-    await catchUpMissedCommands(msg);
-  }
-  const nomeUsuario = await getNomeUsuario(msg.author);
-  log.info("Handler", `Usuário: ${nomeUsuario}`);
-  const retorno = await processarMensagem("!treino", nomeUsuario);
-  await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!treino");
-}
-
-async function handleStatus(msg) {
-  log.info("Handler", "Comando !status detectado");
-  const nomeUsuario = await getNomeUsuario(msg.author);
-  log.info("Handler", `Usuário: ${nomeUsuario}`);
-  const retorno = await processarMensagemSemAtualizar("!status", nomeUsuario);
-  await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!status");
-}
+// =============================================================
+// HANDLERS ANTIGOS (substituídos pelos baseados em imagem PNG)
+// Mantidos comentados para referência.
+// =============================================================
+// async function handleTreinoLegacy(msg, opts = {}) {
+//   log.info("Handler", "Comando !treino (legacy) detectado");
+//   if (!opts.skipCatchUp) {
+//     await catchUpMissedCommands(msg);
+//   }
+//   const nomeUsuario = await getNomeUsuario(msg.author);
+//   log.info("Handler", `Usuário: ${nomeUsuario}`);
+//   const retorno = await processarMensagem("!treino", nomeUsuario);
+//   await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!treino");
+// }
+//
+// async function handleStatusLegacy(msg) {
+//   log.info("Handler", "Comando !status (legacy) detectado");
+//   const nomeUsuario = await getNomeUsuario(msg.author);
+//   log.info("Handler", `Usuário: ${nomeUsuario}`);
+//   const retorno = await processarMensagemSemAtualizar("!status", nomeUsuario);
+//   await safeReply(msg, retorno || "Erro ao gerar a mensagem de retorno.", "!status");
+// }
 
 // ============================================
 // SCREENSHOT DO RANKING (PNG)
 // ============================================
 let _screenshotBrowser = null;
 let _screenshotBrowserPromise = null;
+let _screenshotPage = null;
 
 async function getScreenshotBrowser() {
   if (_screenshotBrowser && _screenshotBrowser.isConnected()) return _screenshotBrowser;
@@ -562,12 +573,23 @@ async function getScreenshotBrowser() {
   _screenshotBrowserPromise = puppeteer
     .launch({
       headless: "new",
-      args: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+      args: [
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-default-apps",
+        "--disable-sync",
+        "--disable-translate",
+        "--no-first-run",
+        "--mute-audio",
+      ],
     })
     .then((b) => {
       _screenshotBrowser = b;
       _screenshotBrowserPromise = null;
-      b.on("disconnected", () => { _screenshotBrowser = null; });
+      b.on("disconnected", () => { _screenshotBrowser = null; _screenshotPage = null; });
       return b;
     })
     .catch((err) => {
@@ -577,30 +599,53 @@ async function getScreenshotBrowser() {
   return _screenshotBrowserPromise;
 }
 
-async function generateRankingPng() {
+async function getScreenshotPage() {
   const browser = await getScreenshotBrowser();
+  if (_screenshotPage && !_screenshotPage.isClosed()) return _screenshotPage;
   const page = await browser.newPage();
-  try {
-    // Viewport único, grande o suficiente para acomodar todos os atletas
-    await page.setViewport({ width: 1640, height: 1800, deviceScaleFactor: 2 });
-    const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
-    const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
-    const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
-    // domcontentloaded é mais rápido que networkidle0 e a página já sinaliza
-    // __rankingReady quando os dados e as fontes estão prontos
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
-    await page.waitForFunction(() => window.__rankingReady === true, { timeout: 10000 });
-
-    const el = await page.$(".card");
-    if (!el) throw new Error("card_not_found");
-    const base64 = await el.screenshot({ type: "png", encoding: "base64", omitBackground: false });
-    if (!base64 || typeof base64 !== "string" || base64.length < 100) {
-      throw new Error(`invalid_screenshot_output (len=${base64 ? base64.length : 0})`);
+  await page.setViewport({ width: 1640, height: 1800, deviceScaleFactor: 2 });
+  // Bloqueia recursos desnecessários (fontes externas, analytics, etc.) que
+  // não impactam o layout final mas atrasam o load.
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    const type = req.resourceType();
+    const u = req.url();
+    if (type === "image" && !u.startsWith("http://127.0.0.1") && !u.startsWith("data:")) {
+      return req.abort();
     }
-    return base64.replace(/\s+/g, "");
-  } finally {
-    await page.close().catch(() => {});
+    if (type === "media" || type === "websocket") return req.abort();
+    req.continue();
+  });
+  _screenshotPage = page;
+  page.on("close", () => { if (_screenshotPage === page) _screenshotPage = null; });
+  return page;
+}
+
+async function prewarmScreenshot() {
+  try {
+    await getScreenshotPage();
+    log.ok("Imagem", "Browser de screenshot pré-aquecido.");
+  } catch (err) {
+    log.warn("Imagem", "Falha ao pré-aquecer browser:", err?.message || err);
   }
+}
+
+async function generateRankingPng() {
+  const page = await getScreenshotPage();
+  const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
+  const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
+  // Cache buster para evitar página servir HTML/JS antigos em hot reload
+  const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}${tokenQs ? "&" : "?"}_t=${Date.now()}`;
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+  await page.waitForFunction(() => window.__rankingReady === true, { timeout: 10000 });
+
+  const el = await page.$(".card");
+  if (!el) throw new Error("card_not_found");
+  const base64 = await el.screenshot({ type: "png", encoding: "base64", omitBackground: false });
+  if (!base64 || typeof base64 !== "string" || base64.length < 100) {
+    throw new Error(`invalid_screenshot_output (len=${base64 ? base64.length : 0})`);
+  }
+  return base64.replace(/\s+/g, "");
 }
 
 async function sendRankingImage(msg, captionExtra) {
@@ -618,19 +663,21 @@ async function sendRankingImage(msg, captionExtra) {
   }
 }
 
-async function handleTreino2(msg, opts = {}) {
-  log.info("Handler", "Comando !treino2 detectado");
+async function handleTreino(msg, opts = {}) {
+  log.info("Handler", "Comando !treino detectado");
   if (!opts.skipCatchUp) {
     await catchUpMissedCommands(msg);
   }
   const nomeUsuario = await getNomeUsuario(msg.author);
   log.info("Handler", `Usuário: ${nomeUsuario}`);
+  // Insere o treino e gera/envia a imagem em paralelo (a imagem usa cache
+  // que será invalidado pelo inserirAtleta antes de o Puppeteer fazer fetch).
   await inserirAtleta(nomeUsuario);
   await sendRankingImage(msg, `Ranking atualizado · ${nomeUsuario}`);
 }
 
-async function handleStatus2(msg) {
-  log.info("Handler", "Comando !status2 detectado");
+async function handleStatus(msg) {
+  log.info("Handler", "Comando !status detectado");
   await sendRankingImage(msg);
 }
 
@@ -661,8 +708,6 @@ async function handleDashboard(msg) {
 }
 
 const COMMAND_HANDLERS = [
-  { match: (body) => body.startsWith("!treino2"), handler: handleTreino2, label: "!treino2" },
-  { match: (body) => body.startsWith("!status2"), handler: handleStatus2, label: "!status2" },
   { match: (body) => body.startsWith("!treino"), handler: handleTreino, label: "!treino" },
   { match: (body) => body.startsWith("!status"), handler: handleStatus, label: "!status" },
   { match: (body) => body.startsWith("!dashboard") || body.startsWith("!painel"), handler: handleDashboard, label: "!dashboard" },
