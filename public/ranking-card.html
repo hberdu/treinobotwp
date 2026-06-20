@@ -65,9 +65,9 @@
       page-break-inside: avoid;
       -webkit-column-break-inside: avoid;
       display: grid;
-      grid-template-columns: 60px 1fr auto;
+      grid-template-columns: 76px 1fr auto;
       align-items: center;
-      gap: 1rem;
+      gap: 1.1rem;
       padding: 1.1rem 1.1rem;
       background: var(--surface-2);
       border: 1px solid var(--border);
@@ -87,16 +87,16 @@
     /* ===== MEDALHAS OUTLINED ===== */
     .medal {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 54px; height: 54px;
+      width: 70px; height: 70px;
       border-radius: 50%;
       background: transparent;
       color: var(--text-dim);
-      font-size: 1.5rem; font-weight: 700;
+      font-size: 2rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
-      border: 1.8px solid var(--border);
+      border: 2.2px solid var(--border);
       font-family: "Space Grotesk", sans-serif;
     }
-    .medal.podium { border-width: 2.2px; }
+    .medal.podium { border-width: 2.6px; }
     .medal.gold   { border-color: #d4af37; color: #d4af37; }
     .medal.silver { border-color: #b8c0c8; color: #b8c0c8; }
     .medal.bronze { border-color: #b87333; color: #b87333; }
@@ -108,7 +108,7 @@
     }
     .name {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 1.7rem;
+      font-size: 2.15rem;
       font-weight: 700;
       letter-spacing: -.02em;
       color: var(--text);
@@ -118,11 +118,11 @@
       text-overflow: ellipsis;
     }
     .progress {
-      display: flex; align-items: center; gap: .7rem;
+      display: flex; align-items: center; gap: .8rem;
     }
     .progress .track {
       flex: 1;
-      height: 7px;
+      height: 9px;
       background: var(--surface-3);
       border-radius: 999px;
       overflow: hidden;
@@ -137,9 +137,9 @@
     }
     .progress .pct {
       font-family: "JetBrains Mono", monospace;
-      font-size: .95rem;
+      font-size: 1.15rem;
       color: var(--text-soft);
-      min-width: 46px;
+      min-width: 54px;
       text-align: right;
       font-variant-numeric: tabular-nums;
       font-weight: 600;
@@ -165,14 +165,14 @@
     }
     .stat-title {
       font-family: "JetBrains Mono", monospace;
-      font-size: .75rem;
+      font-size: .95rem;
       color: var(--text-soft);
       letter-spacing: .14em;
       text-transform: uppercase;
     }
     .stat-val {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 2.2rem;
+      font-size: 2.85rem;
       font-weight: 700;
       letter-spacing: -.025em;
       font-variant-numeric: tabular-nums;
@@ -182,21 +182,21 @@
     .stat-val.cyan { color: var(--c-cyan); }
 
     .week-line {
-      display: flex; align-items: baseline; gap: .55rem;
+      display: flex; align-items: baseline; gap: .65rem;
       font-family: "Space Grotesk", sans-serif;
       line-height: 1;
     }
     .week-line .v {
-      font-size: 1.7rem;
+      font-size: 2.15rem;
       font-weight: 700;
       color: var(--text);
       letter-spacing: -.02em;
       font-variant-numeric: tabular-nums;
     }
-    .week-line .v .div { color: var(--text-soft); font-weight: 500; margin: 0 .1rem; }
+    .week-line .v .div { color: var(--text-soft); font-weight: 500; margin: 0 .12rem; }
     .week-line .lbl {
       font-family: "JetBrains Mono", monospace;
-      font-size: .75rem;
+      font-size: .95rem;
       color: var(--text-soft);
       letter-spacing: .14em;
       text-transform: uppercase;
