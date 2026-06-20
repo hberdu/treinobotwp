@@ -34,14 +34,14 @@
     .mono { font-family: "JetBrains Mono", monospace; }
 
     .card {
-      width: 1100px;
+      width: 1240px;
       background:
         radial-gradient(ellipse 60% 50% at 100% 0%, color-mix(in oklab, var(--c-lime) 10%, transparent), transparent 60%),
         radial-gradient(ellipse 50% 40% at 0% 100%, color-mix(in oklab, var(--c-magenta) 8%, transparent), transparent 60%),
         var(--surface);
       border: 2px solid var(--border);
-      border-radius: 24px;
-      padding: 1.5rem;
+      border-radius: 26px;
+      padding: 1.6rem;
       position: relative;
       margin: 0 auto;
     }
@@ -65,14 +65,14 @@
       page-break-inside: avoid;
       -webkit-column-break-inside: avoid;
       display: grid;
-      grid-template-columns: 76px 1fr auto;
+      grid-template-columns: 84px 1fr auto;
       align-items: center;
-      gap: 1.1rem;
-      padding: 1.1rem 1.1rem;
+      gap: 1.2rem;
+      padding: 1.2rem 1.2rem;
       background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      margin-bottom: .7rem;
+      border-radius: 16px;
+      margin-bottom: .8rem;
       position: relative;
       overflow: hidden;
     }
@@ -80,23 +80,23 @@
       content: "";
       position: absolute;
       left: 0; top: 0; bottom: 0;
-      width: 5px;
+      width: 6px;
       background: var(--athlete-color);
     }
 
     /* ===== MEDALHAS OUTLINED ===== */
     .medal {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 70px; height: 70px;
+      width: 78px; height: 78px;
       border-radius: 50%;
       background: transparent;
       color: var(--text-dim);
-      font-size: 2rem; font-weight: 700;
+      font-size: 2.3rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
-      border: 2.2px solid var(--border);
+      border: 2.4px solid var(--border);
       font-family: "Space Grotesk", sans-serif;
     }
-    .medal.podium { border-width: 2.6px; }
+    .medal.podium { border-width: 2.8px; }
     .medal.gold   { border-color: #d4af37; color: #d4af37; }
     .medal.silver { border-color: #b8c0c8; color: #b8c0c8; }
     .medal.bronze { border-color: #b87333; color: #b87333; }
@@ -108,7 +108,7 @@
     }
     .name {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 2.15rem;
+      font-size: 2.4rem;
       font-weight: 700;
       letter-spacing: -.02em;
       color: var(--text);
@@ -118,11 +118,11 @@
       text-overflow: ellipsis;
     }
     .progress {
-      display: flex; align-items: center; gap: .8rem;
+      display: flex; align-items: center; gap: .85rem;
     }
     .progress .track {
       flex: 1;
-      height: 9px;
+      height: 10px;
       background: var(--surface-3);
       border-radius: 999px;
       overflow: hidden;
@@ -137,9 +137,9 @@
     }
     .progress .pct {
       font-family: "JetBrains Mono", monospace;
-      font-size: 1.15rem;
+      font-size: 1.25rem;
       color: var(--text-soft);
-      min-width: 54px;
+      min-width: 58px;
       text-align: right;
       font-variant-numeric: tabular-nums;
       font-weight: 600;
@@ -165,14 +165,14 @@
     }
     .stat-title {
       font-family: "JetBrains Mono", monospace;
-      font-size: .95rem;
+      font-size: 1.05rem;
       color: var(--text-soft);
       letter-spacing: .14em;
       text-transform: uppercase;
     }
     .stat-val {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 2.85rem;
+      font-size: 3.15rem;
       font-weight: 700;
       letter-spacing: -.025em;
       font-variant-numeric: tabular-nums;
@@ -182,12 +182,12 @@
     .stat-val.cyan { color: var(--c-cyan); }
 
     .week-line {
-      display: flex; align-items: baseline; gap: .65rem;
+      display: flex; align-items: baseline; gap: .7rem;
       font-family: "Space Grotesk", sans-serif;
       line-height: 1;
     }
     .week-line .v {
-      font-size: 2.15rem;
+      font-size: 2.4rem;
       font-weight: 700;
       color: var(--text);
       letter-spacing: -.02em;
@@ -196,7 +196,7 @@
     .week-line .v .div { color: var(--text-soft); font-weight: 500; margin: 0 .12rem; }
     .week-line .lbl {
       font-family: "JetBrains Mono", monospace;
-      font-size: .95rem;
+      font-size: 1.05rem;
       color: var(--text-soft);
       letter-spacing: .14em;
       text-transform: uppercase;
