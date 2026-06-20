@@ -12,8 +12,7 @@
       --surface: #0c0c10;
       --surface-2: #14141a;
       --surface-3: #1d1d25;
-      --border: #1f1f28;
-      --border-strong: #2a2a35;
+      --border: #20202a;
       --text: #f4f4f6;
       --text-dim: #b4b4c0;
       --text-soft: #7a7a86;
@@ -34,18 +33,16 @@
     }
     .mono { font-family: "JetBrains Mono", monospace; }
 
-    /* ===== CARD =====
-       largura otimizada para preview no WhatsApp (~720px renderiza bem)
-       fontes pensadas para serem legíveis a ~360px de visualização */
+    /* Card mais quadrado: WhatsApp não corta imagens próximas de 1:1 / 4:5 */
     .card {
-      width: 720px;
+      width: 900px;
       background:
-        radial-gradient(ellipse 70% 50% at 100% 0%, color-mix(in oklab, var(--c-lime) 14%, transparent), transparent 60%),
-        radial-gradient(ellipse 60% 40% at 0% 100%, color-mix(in oklab, var(--c-magenta) 12%, transparent), transparent 60%),
+        radial-gradient(ellipse 60% 50% at 100% 0%, color-mix(in oklab, var(--c-lime) 12%, transparent), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 0% 100%, color-mix(in oklab, var(--c-magenta) 10%, transparent), transparent 60%),
         var(--surface);
       border: 2px solid var(--border);
-      border-radius: 28px;
-      padding: 2.2rem 2rem 2rem;
+      border-radius: 24px;
+      padding: 2rem 2rem 1.6rem;
       position: relative;
       margin: 0 auto;
     }
@@ -61,12 +58,12 @@
 
     .head {
       display: flex; align-items: flex-end; justify-content: space-between;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       gap: 1rem;
     }
     .head h1 {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 3rem;
+      font-size: 2.4rem;
       font-weight: 700;
       letter-spacing: -.03em;
       margin: 0;
@@ -74,50 +71,60 @@
     }
     .eyebrow {
       font-family: "JetBrains Mono", monospace;
-      font-size: 1rem;
+      font-size: .82rem;
       color: var(--text-soft);
       text-transform: uppercase;
       letter-spacing: .16em;
-      margin-bottom: .5rem;
+      margin-bottom: .4rem;
     }
     .eyebrow::before { content: "// "; opacity: .55; }
     .meta {
       text-align: right;
       font-family: "JetBrains Mono", monospace;
-      font-size: 1rem;
+      font-size: .9rem;
       color: var(--text-soft);
       letter-spacing: .1em;
       text-transform: uppercase;
       line-height: 1.5;
       white-space: nowrap;
     }
-    .meta b { color: var(--text); font-weight: 600; font-size: 1.1rem; }
+    .meta b { color: var(--text); font-weight: 600; font-size: 1rem; }
 
-    /* ===== LIST (substitui a tabela) ===== */
-    .list { display: flex; flex-direction: column; }
+    /* GRID 2 COLUNAS (lado a lado) para reduzir altura */
+    .list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .55rem 1rem;
+    }
 
     .row {
       display: grid;
-      grid-template-columns: 56px 1fr auto;
-      grid-template-rows: auto auto;
-      grid-template-areas:
-        "medal name stats"
-        "bar   bar  bar";
+      grid-template-columns: 44px 1fr auto;
       align-items: center;
-      gap: .35rem 1rem;
-      padding: 1rem .25rem .9rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .row:last-child { border-bottom: 0; }
-
-    .row .medal {
-      grid-area: medal;
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 48px; height: 48px;
-      border-radius: 50%;
+      gap: .85rem;
+      padding: .75rem .75rem;
       background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      min-height: 64px;
+      position: relative;
+    }
+    .row::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--athlete-color);
+      border-radius: 12px 0 0 12px;
+    }
+
+    .medal {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface-3);
       color: var(--text-dim);
-      font-size: 1.3rem; font-weight: 700;
+      font-size: 1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
       border: 1.5px solid var(--border);
       font-family: "Space Grotesk", sans-serif;
@@ -126,74 +133,35 @@
     .medal.silver { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; border-color: transparent; }
     .medal.bronze { background: linear-gradient(135deg, #fdba74, #c2410c); color: #1c0701; border-color: transparent; }
 
-    .row .athlete {
-      grid-area: name;
-      display: flex; align-items: center; gap: 1rem;
+    .main {
+      display: flex; flex-direction: column;
+      gap: .35rem;
       min-width: 0;
-    }
-    .swatch {
-      width: 10px; height: 44px;
-      border-radius: 3px;
-      background: var(--athlete-color, var(--accent));
-      flex-shrink: 0;
     }
     .name {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 1.85rem;
+      font-size: 1.25rem;
       font-weight: 700;
-      letter-spacing: -.02em;
-      color: var(--text);
-      line-height: 1.05;
-      word-break: break-word;
-    }
-
-    .row .stats {
-      grid-area: stats;
-      display: flex;
-      align-items: flex-end;
-      gap: 1.6rem;
-      padding-left: .5rem;
-    }
-    .stat {
-      display: flex; flex-direction: column; align-items: flex-end;
-      gap: .15rem;
-    }
-    .stat .v {
-      font-family: "Space Grotesk", sans-serif;
-      font-size: 1.55rem;
-      font-weight: 700;
-      letter-spacing: -.02em;
+      letter-spacing: -.015em;
       color: var(--text);
       line-height: 1;
-      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .stat .v .small { font-size: .9rem; color: var(--text-soft); font-weight: 500; margin-left: .15rem; }
-    .stat .l {
-      font-family: "JetBrains Mono", monospace;
-      font-size: .7rem;
-      color: var(--text-soft);
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-    .stat .v.accent { color: var(--athlete-color); }
-
-    /* ===== PROGRESS BAR FULL-WIDTH ===== */
     .progress {
-      grid-area: bar;
-      display: flex; align-items: center; gap: .85rem;
-      margin-top: .35rem;
-      padding-left: 4px;
+      display: flex; align-items: center; gap: .5rem;
     }
     .progress .track {
       flex: 1;
-      height: 10px;
-      background: var(--surface-2);
+      height: 5px;
+      background: var(--surface-3);
       border-radius: 999px;
       overflow: hidden;
     }
     .progress .fill {
       height: 100%;
-      background: var(--athlete-color, var(--accent));
+      background: var(--athlete-color);
       border-radius: 999px;
     }
     .progress .fill.full {
@@ -201,32 +169,53 @@
     }
     .progress .pct {
       font-family: "JetBrains Mono", monospace;
-      font-size: .95rem;
-      color: var(--text-dim);
-      min-width: 56px;
+      font-size: .75rem;
+      color: var(--text-soft);
+      min-width: 36px;
       text-align: right;
       font-variant-numeric: tabular-nums;
       font-weight: 600;
     }
 
-    /* ===== FOOTER ===== */
+    .stats {
+      display: flex; flex-direction: column; align-items: flex-end;
+      gap: .15rem;
+      padding-left: .5rem;
+    }
+    .stat-main {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: var(--athlete-color);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-sub {
+      font-family: "JetBrains Mono", monospace;
+      font-size: .65rem;
+      color: var(--text-soft);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
     .foot {
       display: flex; justify-content: space-between; align-items: center;
       margin-top: 1.25rem;
-      padding-top: 1.1rem;
+      padding-top: 1rem;
       border-top: 1px solid var(--border);
       font-family: "JetBrains Mono", monospace;
-      font-size: .85rem;
+      font-size: .78rem;
       color: var(--text-soft);
       letter-spacing: .1em;
       text-transform: uppercase;
     }
     .foot .brand {
-      display: flex; align-items: center; gap: .6rem;
+      display: flex; align-items: center; gap: .55rem;
       color: var(--text-dim);
     }
     .foot .dot {
-      width: 10px; height: 10px;
+      width: 9px; height: 9px;
       border-radius: 50%;
       background: var(--accent);
     }
@@ -276,18 +265,13 @@
       const start = new Date(today.getFullYear(), 0, 1);
       const diff = today - start;
       const weekNo = Math.floor(diff / (1000 * 60 * 60 * 24 * 7)) + 1;
-      const dia = today.getDay();
-      const offsetSeg = dia === 0 ? -6 : 1 - dia;
-      const seg = new Date(today); seg.setDate(today.getDate() + offsetSeg);
-      const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
-      const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      return { weekNo, total: semanasAno, range: `${fmt(seg)} → ${fmt(dom)}` };
+      return { weekNo, total: semanasAno };
     }
 
     function render(data) {
       const sem = getWeekInfo(data.semanasNoAno || 52);
       document.getElementById("meta").innerHTML =
-        `<b>Semana ${sem.weekNo}/${sem.total}</b><br>${sem.range}`;
+        `<b>Semana ${sem.weekNo}/${sem.total}</b>`;
 
       const list = document.getElementById("list");
       list.innerHTML = "";
@@ -307,27 +291,16 @@
         row.style.setProperty("--athlete-color", col);
         row.innerHTML = `
           <span class="medal ${medal}">${i + 1}</span>
-          <div class="athlete">
-            <span class="swatch"></span>
-            <span class="name">${escapeHtml(a.nome)}</span>
+          <div class="main">
+            <div class="name">${escapeHtml(a.nome)}</div>
+            <div class="progress">
+              <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:${pct}%"></div></div>
+              <span class="pct">${pct}%</span>
+            </div>
           </div>
           <div class="stats">
-            <div class="stat">
-              <span class="v accent">${a.progressoSemanal}</span>
-              <span class="l">Sem ✓</span>
-            </div>
-            <div class="stat">
-              <span class="v">${a.progresso}<span class="small">/${a.meta}</span></span>
-              <span class="l">Semana</span>
-            </div>
-            <div class="stat">
-              <span class="v">${a.treinos}</span>
-              <span class="l">Total</span>
-            </div>
-          </div>
-          <div class="progress">
-            <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:${pct}%"></div></div>
-            <span class="pct">${pct}%</span>
+            <span class="stat-main">${a.progressoSemanal}</span>
+            <span class="stat-sub">Sem ✓</span>
           </div>
         `;
         list.appendChild(row);
@@ -335,7 +308,7 @@
 
       const now = new Date();
       document.getElementById("generatedAt").textContent =
-        `gerado em ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+        `${now.toLocaleDateString("pt-BR")} · ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
     }
 
     (async () => {

@@ -554,22 +554,32 @@ async function generateRankingPng() {
   const browser = await getScreenshotBrowser();
   const page = await browser.newPage();
   try {
-    // largura otimizada para preview no WhatsApp (~720px renderiza nítido)
-    // deviceScaleFactor=2 dobra a densidade → PNG sai com 1440px de largura real
-    await page.setViewport({ width: 760, height: 1600, deviceScaleFactor: 2 });
+    // Card 900px com grid de 2 colunas (fica mais quadrado, melhor preview no WhatsApp)
+    await page.setViewport({ width: 940, height: 1000, deviceScaleFactor: 2 });
     const port = currentHttpPort || CONFIG.DEFAULT_HTTP_PORT;
     const tokenQs = DASHBOARD_TOKEN ? `?token=${encodeURIComponent(DASHBOARD_TOKEN)}` : "";
     const url = `http://127.0.0.1:${port}/ranking-card${tokenQs}`;
     await page.goto(url, { waitUntil: "networkidle0", timeout: 30000 });
     await page.waitForFunction(() => window.__rankingReady === true, { timeout: 15000 });
+
+    // Mede o tamanho real e ajusta o viewport para captura limpa
+    const dims = await page.evaluate(() => {
+      const el = document.querySelector(".card");
+      const rect = el.getBoundingClientRect();
+      return { w: Math.ceil(rect.width), h: Math.ceil(rect.height) };
+    });
+    await page.setViewport({
+      width: Math.max(940, dims.w + 40),
+      height: dims.h + 80,
+      deviceScaleFactor: 2,
+    });
+
     const el = await page.$(".card");
     if (!el) throw new Error("card_not_found");
-    // pede direto em base64 para evitar reencode (Buffer.toString pode incluir \n em algumas envs)
     const base64 = await el.screenshot({ type: "png", encoding: "base64", omitBackground: false });
     if (!base64 || typeof base64 !== "string" || base64.length < 100) {
       throw new Error(`invalid_screenshot_output (len=${base64 ? base64.length : 0})`);
     }
-    // sanitiza eventual whitespace/quebras
     return base64.replace(/\s+/g, "");
   } finally {
     await page.close().catch(() => {});
