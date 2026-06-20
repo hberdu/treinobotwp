@@ -119,47 +119,25 @@
       background: var(--athlete-color);
     }
 
-    /* ===== MEDALHAS PREMIUM ===== */
+    /* ===== MEDALHAS OUTLINED ===== */
     .medal {
       display: inline-flex; align-items: center; justify-content: center;
       width: 42px; height: 42px;
       border-radius: 50%;
-      background: var(--surface-3);
+      background: transparent;
       color: var(--text-dim);
       font-size: 1.1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
       border: 1.5px solid var(--border);
       font-family: "Space Grotesk", sans-serif;
-      position: relative;
     }
     .medal.podium {
-      color: #0a0a0a;
-      border: 0;
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.5),
-        inset 0 -2px 0 rgba(0,0,0,.2),
-        0 6px 16px -4px var(--medal-glow, transparent);
+      background: transparent;
+      border-width: 1.8px;
     }
-    .medal.podium::before {
-      content: "";
-      position: absolute;
-      inset: 3px;
-      border-radius: 50%;
-      border: 1.5px solid rgba(255,255,255,.35);
-      pointer-events: none;
-    }
-    .medal.gold {
-      background: radial-gradient(circle at 30% 25%, #fef9c3, #facc15 45%, #b45309 100%);
-      --medal-glow: rgba(250, 204, 21, 0.55);
-    }
-    .medal.silver {
-      background: radial-gradient(circle at 30% 25%, #f8fafc, #cbd5e1 45%, #475569 100%);
-      --medal-glow: rgba(203, 213, 225, 0.45);
-    }
-    .medal.bronze {
-      background: radial-gradient(circle at 30% 25%, #fed7aa, #ea580c 45%, #7c2d12 100%);
-      --medal-glow: rgba(234, 88, 12, 0.5);
-    }
+    .medal.gold   { border-color: #d4af37; color: #d4af37; }
+    .medal.silver { border-color: #b8c0c8; color: #b8c0c8; }
+    .medal.bronze { border-color: #b87333; color: #b87333; }
 
     .main {
       display: flex; flex-direction: column;
@@ -205,15 +183,22 @@
       font-weight: 600;
     }
 
-    /* lado direito: 2 mini stats empilhadas */
+    /* lado direito: stats em 2 linhas, números grandes */
     .stats {
       display: flex; flex-direction: column;
       gap: .35rem;
       padding-left: .25rem;
       align-items: flex-end;
     }
+    .stats-row {
+      display: flex; align-items: baseline;
+      gap: .9rem;
+      line-height: 1;
+    }
     .stat {
-      display: flex; align-items: baseline; gap: .35rem;
+      display: flex; flex-direction: column;
+      align-items: flex-end;
+      gap: .15rem;
       line-height: 1;
     }
     .stat-title {
@@ -225,19 +210,37 @@
     }
     .stat-val {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 1.05rem;
+      font-size: 1.6rem;
       font-weight: 700;
-      letter-spacing: -.01em;
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .stat-val.lime    { color: var(--c-lime); }
+    .stat-val.cyan    { color: var(--c-cyan); }
+    .stat-val.magenta { color: var(--c-magenta); }
+    .stat-val.amber   { color: var(--c-amber); }
+
+    .week-line {
+      display: flex; align-items: baseline; gap: .4rem;
+      font-family: "Space Grotesk", sans-serif;
+      line-height: 1;
+    }
+    .week-line .v {
+      font-size: 1.3rem;
+      font-weight: 700;
       color: var(--text);
+      letter-spacing: -.015em;
       font-variant-numeric: tabular-nums;
     }
-    .stat-val .small {
-      font-size: .68rem;
+    .week-line .v .div { color: var(--text-soft); font-weight: 500; margin: 0 .05rem; }
+    .week-line .lbl {
+      font-family: "JetBrains Mono", monospace;
+      font-size: .58rem;
       color: var(--text-soft);
-      font-weight: 500;
-      margin-left: .1rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
     }
-    .stat-val.accent { color: var(--athlete-color); }
 
     .foot {
       display: flex; justify-content: space-between; align-items: center;
@@ -340,13 +343,19 @@
             </div>
           </div>
           <div class="stats">
-            <div class="stat">
-              <span class="stat-title">SEM</span>
-              <span class="stat-val">${a.progresso}<span class="small">/${a.meta}</span></span>
+            <div class="stats-row">
+              <div class="stat">
+                <span class="stat-title">Total</span>
+                <span class="stat-val lime">${a.treinos}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-title">Sem ✓</span>
+                <span class="stat-val cyan">${a.progressoSemanal}</span>
+              </div>
             </div>
-            <div class="stat">
-              <span class="stat-title">TOT</span>
-              <span class="stat-val accent">${a.treinos}<span class="small">/${a.progressoSemanal}sem</span></span>
+            <div class="week-line">
+              <span class="v">${a.progresso}<span class="div">/</span>${a.meta}</span>
+              <span class="lbl">semana</span>
             </div>
           </div>
         `;
