@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Ranking Kchaw</title>
+  <title>Classificação</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
       --border-strong: #2a2a35;
       --text: #f4f4f6;
       --text-dim: #9c9ca8;
-      --text-soft: #5a5a66;
+      --text-soft: #6b6b78;
       --accent: #c0ff3e;
       --c-lime: #c0ff3e;
       --c-cyan: #22d3ee;
@@ -34,7 +34,6 @@
     }
     .mono { font-family: "JetBrains Mono", monospace; }
 
-    /* container exato pra captura — fundo pintado, padding consistente */
     .card {
       width: 1200px;
       background:
@@ -42,8 +41,8 @@
         radial-gradient(ellipse 40% 30% at 0% 100%, color-mix(in oklab, var(--c-magenta) 10%, transparent), transparent 60%),
         var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 2rem 2.25rem 2.25rem;
+      border-radius: 22px;
+      padding: 2.4rem 2.6rem 2.6rem;
       position: relative;
       margin: 0 auto;
     }
@@ -51,90 +50,89 @@
     .brackets::before, .brackets::after {
       content: "";
       position: absolute;
-      width: 16px; height: 16px;
-      border: 1.6px solid var(--accent);
+      width: 20px; height: 20px;
+      border: 2px solid var(--accent);
     }
-    .brackets::before {
-      top: 12px; left: 12px;
-      border-right: 0; border-bottom: 0;
-    }
-    .brackets::after {
-      bottom: 12px; right: 12px;
-      border-left: 0; border-top: 0;
-    }
+    .brackets::before { top: 14px; left: 14px; border-right: 0; border-bottom: 0; }
+    .brackets::after  { bottom: 14px; right: 14px; border-left: 0; border-top: 0; }
 
     .head {
       display: flex; align-items: flex-end; justify-content: space-between;
-      margin-bottom: 1.4rem;
+      margin-bottom: 1.6rem;
+      gap: 2rem;
     }
     .head h1 {
       font-family: "Space Grotesk", sans-serif;
-      font-size: 2.1rem;
+      font-size: 2.6rem;
       font-weight: 700;
       letter-spacing: -.025em;
       margin: 0;
     }
     .eyebrow {
       font-family: "JetBrains Mono", monospace;
-      font-size: .72rem;
+      font-size: .82rem;
       color: var(--text-soft);
       text-transform: uppercase;
       letter-spacing: .18em;
-      margin-bottom: .35rem;
+      margin-bottom: .4rem;
     }
-    .eyebrow::before { content: "// "; opacity: .5; }
+    .eyebrow::before { content: "// "; opacity: .55; }
     .meta {
       text-align: right;
       font-family: "JetBrains Mono", monospace;
-      font-size: .7rem;
+      font-size: .85rem;
       color: var(--text-soft);
       letter-spacing: .12em;
       text-transform: uppercase;
-      line-height: 1.6;
+      line-height: 1.7;
     }
     .meta b { color: var(--text); font-weight: 600; }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: .95rem;
+      font-size: 1.25rem;
     }
-    th, td {
+    thead th {
       text-align: left;
-      padding: .85rem .8rem;
-      border-bottom: 1px solid var(--border);
-    }
-    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    th {
-      font-size: .68rem;
+      padding: 1rem .9rem .85rem;
+      font-size: .78rem;
       color: var(--text-soft);
       letter-spacing: .14em;
       text-transform: uppercase;
       font-weight: 500;
+      border-bottom: 1px solid var(--border);
     }
-    tbody tr:last-child td { border-bottom: 0; }
+    th.num { text-align: right; }
 
-    .athlete-cell {
-      display: flex; align-items: center; gap: .8rem;
+    tbody td {
+      padding: .85rem .9rem .4rem;
+      vertical-align: middle;
+      font-variant-numeric: tabular-nums;
     }
-    .swatch {
-      width: 8px; height: 26px;
-      border-radius: 2px;
-      background: var(--athlete-color, var(--accent));
-      flex-shrink: 0;
-    }
+    td.num { text-align: right; }
+
     .athlete-name {
       font-weight: 600;
       color: var(--text);
+      font-size: 1.3rem;
     }
-
+    .athlete-cell {
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .swatch {
+      width: 10px; height: 36px;
+      border-radius: 3px;
+      background: var(--athlete-color, var(--accent));
+      flex-shrink: 0;
+    }
     .medal {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 30px; height: 30px;
+      width: 40px; height: 40px;
       border-radius: 50%;
       background: var(--surface-2);
       color: var(--text-dim);
-      font-size: .8rem; font-weight: 700;
+      font-size: 1rem; font-weight: 700;
       font-variant-numeric: tabular-nums;
       border: 1px solid var(--border);
     }
@@ -142,16 +140,21 @@
     .medal.silver { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; border-color: transparent; }
     .medal.bronze { background: linear-gradient(135deg, #fdba74, #c2410c); color: #1c0701; border-color: transparent; }
 
+    /* progress row abaixo de cada linha do atleta */
+    .progress-row td {
+      padding: 0 .9rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr.progress-row:last-child td { border-bottom: 0; }
     .progress-bar {
-      display: flex; align-items: center; gap: .6rem;
+      display: flex; align-items: center; gap: 1rem;
     }
     .progress-bar .track {
       flex: 1;
-      height: 6px;
+      height: 8px;
       background: var(--surface-2);
       border-radius: 999px;
       overflow: hidden;
-      min-width: 110px;
     }
     .progress-bar .fill {
       height: 100%;
@@ -162,28 +165,31 @@
       background: linear-gradient(90deg, #4ade80, var(--c-lime));
     }
     .progress-bar .pct {
-      font-size: .85rem; color: var(--text-dim);
-      min-width: 44px; text-align: right;
+      font-size: 1rem;
+      color: var(--text-dim);
+      min-width: 56px;
+      text-align: right;
       font-variant-numeric: tabular-nums;
+      font-weight: 500;
     }
 
     .foot {
       display: flex; justify-content: space-between; align-items: center;
-      margin-top: 1.25rem;
-      padding-top: 1rem;
+      margin-top: 1.5rem;
+      padding-top: 1.25rem;
       border-top: 1px solid var(--border);
       font-family: "JetBrains Mono", monospace;
-      font-size: .7rem;
+      font-size: .82rem;
       color: var(--text-soft);
       letter-spacing: .1em;
       text-transform: uppercase;
     }
     .foot .brand {
-      display: flex; align-items: center; gap: .55rem;
+      display: flex; align-items: center; gap: .6rem;
       color: var(--text-dim);
     }
     .foot .dot {
-      width: 8px; height: 8px;
+      width: 10px; height: 10px;
       border-radius: 50%;
       background: var(--accent);
     }
@@ -193,8 +199,8 @@
   <div class="card brackets">
     <header class="head">
       <div>
-        <div class="eyebrow">classificação · ranking kchaw</div>
-        <h1 id="title">Ranking Kchaw</h1>
+        <div class="eyebrow">classificação · top atletas</div>
+        <h1>Classificação</h1>
       </div>
       <div class="meta" id="meta">—</div>
     </header>
@@ -202,13 +208,12 @@
     <table>
       <thead>
         <tr>
-          <th>#</th>
+          <th style="width: 60px">#</th>
           <th>Atleta</th>
           <th class="num">Treinos</th>
           <th class="num">Semana</th>
           <th class="num">Meta</th>
-          <th class="num">Sem✓</th>
-          <th>Meta %</th>
+          <th class="num">Sem ✓</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -234,7 +239,6 @@
     }
 
     const TOKEN = new URLSearchParams(location.search).get("token") || "";
-
     async function fetchData() {
       const url = TOKEN ? `/api/dashboard?token=${encodeURIComponent(TOKEN)}` : "/api/dashboard";
       const res = await fetch(url, { headers: TOKEN ? { "x-dashboard-token": TOKEN } : {} });
@@ -272,6 +276,7 @@
         const pct = a.meta > 0 ? Math.min(100, Math.round((a.progresso / a.meta) * 100)) : 0;
         const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
         const col = colorFor(a.nome);
+
         const tr = document.createElement("tr");
         tr.style.setProperty("--athlete-color", col);
         tr.innerHTML = `
@@ -286,14 +291,22 @@
           <td class="num">${a.progresso}</td>
           <td class="num">${a.meta}</td>
           <td class="num">${a.progressoSemanal}/${data.semanasNoAno || 52}</td>
-          <td>
+        `;
+
+        const progressTr = document.createElement("tr");
+        progressTr.className = "progress-row";
+        progressTr.style.setProperty("--athlete-color", col);
+        progressTr.innerHTML = `
+          <td colspan="6">
             <div class="progress-bar">
               <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:${pct}%"></div></div>
               <span class="pct">${pct}%</span>
             </div>
           </td>
         `;
+
         tbody.appendChild(tr);
+        tbody.appendChild(progressTr);
       });
 
       const now = new Date();

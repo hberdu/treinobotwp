@@ -475,16 +475,16 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: .88rem;
+  font-size: 1rem;
 }
 th, td {
   text-align: left;
-  padding: .85rem .75rem;
+  padding: .9rem .75rem;
   border-bottom: 1px solid var(--border);
 }
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 th {
-  font-size: .65rem; text-transform: uppercase;
+  font-size: .72rem; text-transform: uppercase;
   color: var(--text-soft);
   letter-spacing: .14em;
   font-weight: 500;
@@ -502,24 +502,37 @@ tbody tr.is-highlighted .athlete-swatch { transform: scaleY(1.4); }
 tbody tr:last-child td { border-bottom: 0; }
 .athlete-swatch { transition: transform var(--t-med); }
 
+/* tabela classificação: linha principal + linha de progresso (sem border entre elas) */
+tbody tr[data-athlete-row] td { border-bottom: 0; padding-bottom: .35rem; padding-top: .85rem; }
+tbody tr.progress-row td {
+  padding: 0 .75rem .9rem;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr.progress-row:last-child td { border-bottom: 0; }
+tbody tr.progress-row:hover { background: transparent; }
+tbody tr.progress-row.is-highlighted {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--athlete-color) 14%, transparent), transparent 80%);
+  box-shadow: inset 4px 0 0 var(--athlete-color);
+}
+
 .athlete-cell {
-  display: flex; align-items: center; gap: .7rem;
+  display: flex; align-items: center; gap: .8rem;
 }
 .athlete-swatch {
-  width: 8px; height: 24px;
+  width: 9px; height: 32px;
   border-radius: 2px;
   background: var(--athlete-color);
   flex-shrink: 0;
 }
-.athlete-name { font-weight: 600; }
+.athlete-name { font-weight: 600; font-size: 1.02rem; color: var(--text); }
 
 .medal {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--text-dim);
-  font-size: .76rem; font-weight: 700;
+  font-size: .85rem; font-weight: 700;
   font-variant-numeric: tabular-nums;
   border: 1px solid var(--border);
 }
@@ -527,10 +540,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .medal.silver { background: #cbd5e1; color: #111827; border-color: transparent; }
 .medal.bronze { background: var(--c-orange); color: #1c0701; border-color: transparent; }
 
-.progress-bar { display: flex; align-items: center; gap: .55rem; }
+.progress-bar { display: flex; align-items: center; gap: .75rem; }
 .progress-bar .track {
   flex: 1;
-  height: 6px;
+  height: 7px;
   background: var(--surface-2);
   border-radius: 999px;
   overflow: hidden;
@@ -546,9 +559,10 @@ tbody tr:last-child td { border-bottom: 0; }
   background: linear-gradient(90deg, var(--c-emerald), var(--c-lime));
 }
 .progress-bar .pct {
-  font-size: .8rem; color: var(--text-dim);
-  min-width: 38px; text-align: right;
+  font-size: .88rem; color: var(--text-dim);
+  min-width: 44px; text-align: right;
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .row-action {

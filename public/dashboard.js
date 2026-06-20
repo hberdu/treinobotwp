@@ -167,13 +167,14 @@ function highlightAthlete(name, opts = {}) {
   lastHighlight = name;
 
   $$("#atletasTable tbody tr").forEach((tr) => {
-    const cell = tr.querySelector(".athlete-name");
-    if (cell && cell.textContent === name) {
+    const isMain = tr.dataset.athleteRow === name;
+    const isProgress = tr.dataset.athleteProgress === name;
+    if (isMain || isProgress) {
       if (!tr.classList.contains("is-highlighted")) {
         tr.classList.add("is-highlighted");
         try { tr.style.setProperty("--athlete-color", colorFor(name)); } catch (_) {}
-        pulseSwatch(tr);
-        if (window.gsap) gsap.fromTo(tr, { x: -6 }, { x: 0, duration: .4, ease: "power3.out" });
+        if (isMain) pulseSwatch(tr);
+        if (window.gsap && isMain) gsap.fromTo(tr, { x: -6 }, { x: 0, duration: .4, ease: "power3.out" });
       }
     } else {
       tr.classList.remove("is-highlighted");
@@ -194,8 +195,8 @@ function bindCrossHighlight() {
     tbody.addEventListener("mouseover", (e) => {
       const tr = e.target.closest("tr");
       if (!tr) return;
-      const cell = tr.querySelector(".athlete-name");
-      if (cell) highlightAthlete(cell.textContent);
+      const name = tr.dataset.athleteRow || tr.dataset.athleteProgress;
+      if (name) highlightAthlete(name);
     });
     tbody.addEventListener("mouseleave", clearHighlight);
   }
@@ -586,8 +587,11 @@ function renderTable() {
     const pct = a.meta > 0 ? Math.min(100, Math.round((a.progresso/a.meta)*100)) : 0;
     const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
     const col = colorFor(a.nome);
+
+    // linha principal do atleta
     const tr = document.createElement("tr");
     tr.style.setProperty("--athlete-color", col);
+    tr.dataset.athleteRow = a.nome;
     tr.innerHTML = `
       <td><span class="medal ${medal}">${i+1}</span></td>
       <td>
@@ -600,20 +604,30 @@ function renderTable() {
       <td class="num">${a.progresso}</td>
       <td class="num">${a.meta}</td>
       <td class="num">${a.progressoSemanal}/${state.semanasNoAno}</td>
-      <td>
+      <td><button class="row-action" data-athlete="${escapeHtml(a.nome)}">→</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    // linha de progresso (barra full-width abaixo)
+    const prTr = document.createElement("tr");
+    prTr.className = "progress-row";
+    prTr.dataset.athleteProgress = a.nome;
+    prTr.style.setProperty("--athlete-color", col);
+    prTr.innerHTML = `
+      <td colspan="7">
         <div class="progress-bar">
           <div class="track"><div class="fill ${pct >= 100 ? "full" : ""}" style="width:0%"></div></div>
           <span class="pct">${pct}%</span>
         </div>
       </td>
-      <td><button class="row-action" data-athlete="${escapeHtml(a.nome)}">→</button></td>
     `;
-    tbody.appendChild(tr);
+    tbody.appendChild(prTr);
+
     if (window.gsap) {
-      gsap.from(tr, { opacity: 0, x: -10, duration: .4, delay: Math.min(i * .025, .6), ease: "power2.out" });
-      gsap.to(tr.querySelector(".fill"), { width: pct + "%", duration: 1, delay: .15 + Math.min(i * .025, .6), ease: "power2.out" });
+      gsap.from([tr, prTr], { opacity: 0, x: -10, duration: .4, delay: Math.min(i * .025, .6), ease: "power2.out", stagger: .02 });
+      gsap.to(prTr.querySelector(".fill"), { width: pct + "%", duration: 1, delay: .2 + Math.min(i * .025, .6), ease: "power2.out" });
     } else {
-      tr.querySelector(".fill").style.width = pct + "%";
+      prTr.querySelector(".fill").style.width = pct + "%";
     }
   });
 
