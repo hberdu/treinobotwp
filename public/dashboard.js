@@ -3,7 +3,28 @@
 // =============================================================
 // treinos · 2026  ·  GSAP-style
 // =============================================================
-const TOKEN = new URLSearchParams(location.search).get("token") || "";
+const TOKEN_STORAGE_KEY = "treinos:token";
+function loadToken() {
+  try {
+    const fromUrl = new URLSearchParams(location.search).get("token");
+    if (fromUrl) {
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, fromUrl);
+      // Remove o token da URL para não vazar em logs/Referer/histórico.
+      const url = new URL(location.href);
+      url.searchParams.delete("token");
+      history.replaceState(null, "", url.pathname + (url.search || "") + url.hash);
+      return fromUrl;
+    }
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY) || "";
+  } catch (_) {
+    return new URLSearchParams(location.search).get("token") || "";
+  }
+}
+const TOKEN = loadToken();
+function authHeaders(extra) {
+  const base = TOKEN ? { "x-dashboard-token": TOKEN } : {};
+  return extra ? { ...base, ...extra } : base;
+}
 
 // ===================== PALETTE =====================
 const PALETTE = [
@@ -132,16 +153,14 @@ function initials(name) {
 
 // ===================== FETCH =====================
 async function loadData() {
-  const url = TOKEN ? `/api/dashboard?token=${encodeURIComponent(TOKEN)}` : "/api/dashboard";
-  const res = await fetch(url, { headers: TOKEN ? { "x-dashboard-token": TOKEN } : {} });
+  const res = await fetch("/api/dashboard", { headers: authHeaders() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 async function postTreino(nome) {
-  const url = TOKEN ? `/api/treino?token=${encodeURIComponent(TOKEN)}` : "/api/treino";
-  const res = await fetch(url, {
+  const res = await fetch("/api/treino", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(TOKEN ? { "x-dashboard-token": TOKEN } : {}) },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ nome }),
   });
   const json = await res.json().catch(() => ({}));

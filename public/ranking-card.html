@@ -220,10 +220,10 @@
       return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     }
 
-    const TOKEN = new URLSearchParams(location.search).get("token") || "";
+    const params = new URLSearchParams(location.search);
+    const TOKEN = params.get("token") || "";
     async function fetchData() {
-      const url = TOKEN ? `/api/dashboard?token=${encodeURIComponent(TOKEN)}` : "/api/dashboard";
-      const res = await fetch(url, { headers: TOKEN ? { "x-dashboard-token": TOKEN } : {} });
+      const res = await fetch("/api/dashboard", { headers: TOKEN ? { "x-dashboard-token": TOKEN } : {} });
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.json();
     }

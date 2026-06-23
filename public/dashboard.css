@@ -35,6 +35,11 @@
   --t-fast: .2s cubic-bezier(.4,0,.2,1);
   --t-med: .35s cubic-bezier(.22,.61,.36,1);
   --t-slow: .7s cubic-bezier(.22,.61,.36,1);
+
+  /* altura do topbar fixo · ajustada por media query + JS (ResizeObserver) */
+  --topbar-h: 72px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * { box-sizing: border-box; }
@@ -65,6 +70,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02","cv03","cv11","ss01";
   min-height: 100vh;
+  /* dá espaço pro topbar fixo + safe-area do iOS */
+  padding-top: calc(var(--topbar-h) + var(--safe-top));
+  padding-bottom: var(--safe-bottom);
 }
 
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
@@ -113,10 +121,13 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   align-items: center;
   gap: 2rem;
   padding: 1.1rem 2rem;
-  background: rgba(6,6,8,0.7);
+  padding-top: calc(1.1rem + var(--safe-top));
+  background: rgba(6,6,8,0.72);
   border-bottom: 1px solid var(--border);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);

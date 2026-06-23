@@ -5,6 +5,9 @@ require('dotenv').config({ quiet: true });
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
 const qrcodeTerminal = require("qrcode-terminal");
 const puppeteer = require("puppeteer");
@@ -67,7 +70,30 @@ const log = Object.freeze({
 // ============================================
 const app = express();
 app.disable("x-powered-by");
-app.use(express.json());
+app.set("trust proxy", 1);
+
+// Security headers · CSP compatível com Chart.js / GSAP / Google Fonts
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": ["'self'", "https://cdn.jsdelivr.net"],
+      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+      "img-src": ["'self'", "data:", "blob:"],
+      "connect-src": ["'self'"],
+      "frame-ancestors": ["'none'"],
+      "object-src": ["'none'"],
+      "base-uri": ["'self'"],
+      "form-action": ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: "no-referrer" },
+}));
+
+app.use(express.json({ limit: "4kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/healthz", (_req, res) => {
   res.json({
@@ -84,15 +110,55 @@ app.get("/healthz", (_req, res) => {
 // ============================================
 const DASHBOARD_TOKEN = process.env.DASHBOARD_TOKEN || null;
 const DASHBOARD_PUBLIC_URL = process.env.DASHBOARD_PUBLIC_URL || "http://191.252.102.34:4020/dashboard";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+if (!DASHBOARD_TOKEN) {
+  if (IS_PRODUCTION) {
+    log.error("Security", "DASHBOARD_TOKEN ausente em produção — APIs ficariam abertas. Encerrando.");
+    process.exit(1);
+  } else {
+    log.warn("Security", "DASHBOARD_TOKEN não definido — APIs do dashboard estão ABERTAS (modo dev).");
+  }
+}
+
+const TOKEN_BUFFER = DASHBOARD_TOKEN ? Buffer.from(DASHBOARD_TOKEN, "utf8") : null;
+
+function safeTokenEqual(provided) {
+  if (!TOKEN_BUFFER || typeof provided !== "string") return false;
+  const providedBuf = Buffer.from(provided, "utf8");
+  if (providedBuf.length !== TOKEN_BUFFER.length) return false;
+  return crypto.timingSafeEqual(providedBuf, TOKEN_BUFFER);
+}
 
 function dashboardAuth(req, res, next) {
   if (!DASHBOARD_TOKEN) return next();
-  const provided = req.query.token || req.headers["x-dashboard-token"];
-  if (provided !== DASHBOARD_TOKEN) {
+  const headerToken = req.headers["x-dashboard-token"];
+  const queryToken = req.query.token;
+  const provided = headerToken || queryToken;
+  if (!safeTokenEqual(provided)) {
     return res.status(401).json({ error: "unauthorized" });
+  }
+  if (queryToken && !headerToken) {
+    log.warn("Security", `Token via query string (${req.ip}) — prefira header x-dashboard-token.`);
   }
   next();
 }
+
+// Rate limiters · protege contra brute force / abuso
+const writeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "rate_limited" },
+});
+const readLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 240,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "rate_limited" },
+});
 
 function toISO(value) {
   if (!value) return null;
@@ -107,7 +173,7 @@ function toISO(value) {
   return null;
 }
 
-app.get("/api/atletas", dashboardAuth, async (_req, res) => {
+app.get("/api/atletas", readLimiter, dashboardAuth, async (_req, res) => {
   try {
     const snapshot = await getDocs(collection(db, "atletas2026"));
     const atletas = [];
@@ -129,7 +195,7 @@ app.get("/api/atletas", dashboardAuth, async (_req, res) => {
   }
 });
 
-app.get("/api/treinos", dashboardAuth, async (req, res) => {
+app.get("/api/treinos", readLimiter, dashboardAuth, async (req, res) => {
   try {
     const snapshot = await getDocs(collection(db, "data-treino"));
     const since = req.query.since ? new Date(req.query.since) : null;
@@ -218,7 +284,7 @@ async function loadDashboardPayload() {
   return dashboardCache.building;
 }
 
-app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
+app.get("/api/dashboard", readLimiter, dashboardAuth, async (_req, res) => {
   try {
     const payload = await loadDashboardPayload();
     res.json(payload);
@@ -228,10 +294,15 @@ app.get("/api/dashboard", dashboardAuth, async (_req, res) => {
   }
 });
 
-app.post("/api/treino", dashboardAuth, async (req, res) => {
+const NOME_REGEX = /^[\p{L}\p{M}0-9 ._'\-]{1,80}$/u;
+
+app.post("/api/treino", writeLimiter, dashboardAuth, async (req, res) => {
   try {
-    const nome = (req.body && req.body.nome ? String(req.body.nome) : "").trim();
+    const raw = req.body && req.body.nome;
+    if (typeof raw !== "string") return res.status(400).json({ error: "nome_required" });
+    const nome = raw.trim();
     if (!nome) return res.status(400).json({ error: "nome_required" });
+    if (!NOME_REGEX.test(nome)) return res.status(400).json({ error: "nome_invalido" });
 
     const ref = doc(db, "atletas2026", nome);
     const snap = await getDoc(ref);
