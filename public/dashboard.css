@@ -70,8 +70,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "cv02","cv03","cv11","ss01";
   min-height: 100vh;
-  /* dá espaço pro topbar fixo + safe-area do iOS */
-  padding-top: calc(var(--topbar-h) + var(--safe-top));
   padding-bottom: var(--safe-bottom);
 }
 
@@ -113,7 +111,7 @@ body {
 body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index: 1; }
 
 /* ============================================================
-   TOPBAR
+   TOPBAR  (sticky · acompanha o scroll naturalmente)
    ============================================================ */
 .topbar {
   display: grid;
@@ -122,24 +120,10 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   gap: 2rem;
   padding: 1.1rem 2rem;
   padding-top: calc(1.1rem + var(--safe-top));
-  background: rgba(6,6,8,0.72);
+  background: rgba(6,6,8,0.7);
   border-bottom: 1px solid var(--border);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  transition: background .3s ease, padding .3s ease, border-color .3s ease, box-shadow .3s ease;
-}
-/* solidifica quando scroll passa do topo — sensação de "grudar" */
-.topbar.is-scrolled {
-  background: rgba(6,6,8,0.92);
-  border-bottom-color: var(--border-strong);
-  padding-top: calc(.7rem + var(--safe-top));
-  padding-bottom: .7rem;
-  box-shadow: 0 12px 30px -22px rgba(0,0,0,.75);
 }
 .brand {
   display: flex; align-items: center; gap: .9rem;
@@ -1455,6 +1439,137 @@ tbody tr.progress-row.is-highlighted {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================================
+   RADIAL MENU  (fixo, bottom-right · estilo GSAP demo)
+   ============================================================ */
+.radial-menu {
+  position: fixed;
+  right: calc(1.5rem + var(--safe-bottom, 0px));
+  bottom: calc(1.5rem + var(--safe-bottom, 0px));
+  width: 64px; height: 64px;
+  z-index: 60;
+  pointer-events: none;
+}
+.radial-menu > * { pointer-events: auto; }
+
+.radial-toggle {
+  position: absolute;
+  inset: 0;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #060608;
+  border: 0;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+  box-shadow:
+    0 18px 40px -10px color-mix(in oklab, var(--accent) 55%, transparent),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+  transition: transform var(--t-med), box-shadow var(--t-med), background var(--t-fast);
+  z-index: 2;
+}
+.radial-toggle:hover { transform: scale(1.06); }
+.radial-toggle:active { transform: scale(.94); }
+.radial-toggle .radial-icon { transition: transform var(--t-med); }
+.radial-menu.is-open .radial-toggle {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 24px 50px -15px rgba(0,0,0,.7),
+    0 0 0 1px var(--border-strong) inset;
+}
+.radial-menu.is-open .radial-icon { transform: rotate(135deg); }
+
+.radial-toggle::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklab, var(--accent) 35%, transparent);
+  opacity: 0;
+  transform: scale(.8);
+  transition: opacity var(--t-med), transform var(--t-med);
+  pointer-events: none;
+}
+.radial-toggle:hover::before { opacity: 1; transform: scale(1); }
+
+.radial-item {
+  position: absolute;
+  width: 56px; height: 56px;
+  top: 4px; left: 4px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px;
+  font-family: inherit;
+  opacity: 0;
+  transform: translate(0, 0) scale(.5);
+  transition:
+    transform .55s cubic-bezier(.22,1.5,.36,1),
+    opacity .35s ease,
+    background var(--t-fast),
+    color var(--t-fast),
+    border-color var(--t-fast);
+  pointer-events: none;
+  box-shadow: 0 10px 25px -10px rgba(0,0,0,.6);
+}
+.radial-num { font-size: .55rem; color: var(--text-soft); letter-spacing: .14em; }
+.radial-label { font-size: .68rem; font-weight: 600; letter-spacing: -.005em; }
+.radial-item.is-active {
+  background: var(--accent);
+  color: #060608;
+  border-color: var(--accent);
+}
+.radial-item.is-active .radial-num { color: rgba(6,6,8,.55); }
+.radial-item:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.radial-item.is-active:hover { color: #060608; border-color: var(--accent); }
+.radial-refresh { gap: 0; }
+
+.radial-menu.is-open .radial-item { opacity: 1; pointer-events: auto; }
+.radial-menu.is-open .radial-item:nth-child(1) { transform: translate(-110px, -10px)  scale(1); transition-delay: .04s; }
+.radial-menu.is-open .radial-item:nth-child(2) { transform: translate(-95px, -75px)   scale(1); transition-delay: .08s; }
+.radial-menu.is-open .radial-item:nth-child(3) { transform: translate(-40px, -120px)  scale(1); transition-delay: .12s; }
+.radial-menu.is-open .radial-item:nth-child(4) { transform: translate(35px, -110px)   scale(1); transition-delay: .16s; }
+
+.radial-backdrop {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at bottom right, rgba(6,6,8,.6) 0%, rgba(6,6,8,.2) 40%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-med);
+  z-index: 59;
+}
+.radial-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+@media (max-width: 700px) {
+  .radial-menu {
+    right: 1rem;
+    bottom: calc(1rem + var(--safe-bottom, 0px));
+    width: 58px; height: 58px;
+  }
+  .radial-toggle { width: 58px; height: 58px; }
+  .radial-item { width: 52px; height: 52px; top: 3px; left: 3px; }
+  .radial-menu.is-open .radial-item:nth-child(1) { transform: translate(-95px, -8px)   scale(1); }
+  .radial-menu.is-open .radial-item:nth-child(2) { transform: translate(-82px, -65px)  scale(1); }
+  .radial-menu.is-open .radial-item:nth-child(3) { transform: translate(-32px, -105px) scale(1); }
+  .radial-menu.is-open .radial-item:nth-child(4) { transform: translate(30px, -95px)   scale(1); }
+  .radial-label { font-size: .62rem; }
+  .radial-num { font-size: .5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radial-item, .radial-toggle, .radial-backdrop { transition-duration: 0.01ms !important; }
 }
 
 /* ============================================================

@@ -1579,54 +1579,82 @@ function bindEvents() {
     requestAnimationFrame(() => {
       movePill();
       layoutChamps();
-      updateTopbarHeight();
     });
   });
 }
 
-// ===================== TOPBAR HEIGHT (fixed) =====================
-function updateTopbarHeight() {
-  const topbar = document.querySelector(".topbar");
-  if (!topbar) return;
-  const h = topbar.getBoundingClientRect().height;
-  if (h > 0) document.documentElement.style.setProperty("--topbar-h", `${Math.round(h)}px`);
-}
+function bindRadialMenu() {
+  const menu = document.getElementById("radialMenu");
+  const toggle = document.getElementById("radialToggle");
+  if (!menu || !toggle) return;
 
-function bindTopbarObserver() {
-  const topbar = document.querySelector(".topbar");
-  if (!topbar) return;
-  updateTopbarHeight();
-  if ("ResizeObserver" in window) {
-    const ro = new ResizeObserver(() => updateTopbarHeight());
-    ro.observe(topbar);
+  // backdrop dim por baixo do menu
+  let backdrop = document.querySelector(".radial-backdrop");
+  if (!backdrop) {
+    backdrop = document.createElement("div");
+    backdrop.className = "radial-backdrop";
+    document.body.appendChild(backdrop);
   }
-}
 
-// ===================== TOPBAR SCROLL (solidifica ao rolar, sempre visível) =====================
-function bindTopbarScroll() {
-  const topbar = document.querySelector(".topbar");
-  if (!topbar) return;
+  const open = () => {
+    menu.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    toggle.setAttribute("aria-expanded", "true");
+    syncActive();
+  };
+  const close = () => {
+    menu.classList.remove("is-open");
+    backdrop.classList.remove("is-open");
+    toggle.setAttribute("aria-expanded", "false");
+  };
+  const isOpen = () => menu.classList.contains("is-open");
 
-  let ticking = false;
-  const onScroll = () => {
-    topbar.classList.toggle("is-scrolled", window.scrollY > 4);
-    ticking = false;
+  const syncActive = () => {
+    const activeView = document.querySelector(".view.is-active");
+    const current = activeView ? activeView.id.replace("view-", "") : null;
+    menu.querySelectorAll(".radial-item[data-view]").forEach((b) => {
+      b.classList.toggle("is-active", b.dataset.view === current);
+    });
   };
 
-  window.addEventListener("scroll", () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(onScroll);
-  }, { passive: true });
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    isOpen() ? close() : open();
+  });
 
-  onScroll();
+  menu.querySelectorAll(".radial-item").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const view = btn.dataset.view;
+      const action = btn.dataset.action;
+      if (view) {
+        if (typeof switchTab === "function") switchTab(view);
+      } else if (action === "refresh") {
+        const rb = document.getElementById("refreshBtn");
+        if (rb) rb.click(); else if (typeof fullReload === "function") fullReload();
+      }
+      setTimeout(close, 220);
+    });
+  });
+
+  // fecha clicando fora ou ESC
+  document.addEventListener("click", (e) => {
+    if (!isOpen()) return;
+    if (!menu.contains(e.target)) close();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isOpen()) close();
+  });
+
+  // mantém o ativo sincronizado quando as tabs do topbar são clicadas
+  document.querySelectorAll(".tabs .tab").forEach((t) => t.addEventListener("click", syncActive));
+  syncActive();
 }
 
 // ===================== INIT =====================
 (function init() {
   bindEvents();
-  bindTopbarObserver();
-  bindTopbarScroll();
+  bindRadialMenu();
   bindChampsSwipe();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
