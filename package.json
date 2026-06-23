@@ -22,7 +22,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "start:daily": "node dailyTaskApp/dailyTaskApp.js"
+    "start:daily": "node dailyTaskApp/dailyTaskApp.js",
+    "start:watchdog": "node watchdog/watchdog.js"
   },
   "author": "",
   "license": "ISC",
