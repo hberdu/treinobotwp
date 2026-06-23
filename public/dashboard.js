@@ -311,7 +311,7 @@ function animateHeroChars(view) {
       }
     );
   });
-  const subs = view.querySelectorAll(".hero-eyebrow, .hero-meta, .hero-sub, .aside-quote, .aside-tip");
+  const subs = view.querySelectorAll(".hero-eyebrow, .hero-meta, .hero-sub, .aside-tip");
   if (subs.length) {
     gsap.killTweensOf(subs);
     gsap.fromTo(subs,
@@ -369,17 +369,46 @@ function bindTilts() {
 // ===================== CARD REVEAL ON SCROLL =====================
 function revealCardsOnScroll(scope) {
   if (!window.gsap || !window.ScrollTrigger) return;
-  const items = (scope || document).querySelectorAll(".card, .kpi");
-  items.forEach((el) => {
-    if (el.dataset.revealed) return;
-    el.dataset.revealed = "1";
-    gsap.fromTo(el,
-      { opacity: 0, y: 24 },
-      {
-        opacity: 1, y: 0, duration: .7, ease: "power3.out",
-        scrollTrigger: { trigger: el, start: "top 92%", once: true },
-      }
-    );
+  const items = Array.from((scope || document).querySelectorAll(".card, .kpi"))
+    .filter((el) => !el.dataset.revealed);
+  if (!items.length) return;
+  items.forEach((el) => { el.dataset.revealed = "1"; });
+
+  gsap.set(items, { opacity: 0, y: 38, scale: .96 });
+
+  ScrollTrigger.batch(items, {
+    start: "top 88%",
+    once: true,
+    onEnter: (batch) => {
+      gsap.to(batch, {
+        opacity: 1, y: 0, scale: 1,
+        duration: .85,
+        ease: "power3.out",
+        stagger: { each: .08, from: "start" },
+        clearProps: "transform",
+      });
+    },
+  });
+}
+
+// ===================== HERO PARALLAX =====================
+function bindHeroParallax(scope) {
+  if (!window.gsap || !window.ScrollTrigger) return;
+  const heroes = (scope || document).querySelectorAll(".hero");
+  heroes.forEach((hero) => {
+    if (hero.dataset.parallaxBound) return;
+    hero.dataset.parallaxBound = "1";
+    gsap.to(hero, {
+      yPercent: 25,
+      opacity: .25,
+      ease: "none",
+      scrollTrigger: {
+        trigger: hero,
+        start: "top top+=80",
+        end: "bottom top+=80",
+        scrub: true,
+      },
+    });
   });
 }
 
@@ -577,6 +606,7 @@ function renderProgresso() {
 
 function renderTable() {
   const tbody = $("#atletasTable tbody");
+  if (!tbody) return;
   tbody.innerHTML = "";
   const ordenados = [...state.atletas].sort((a, b) => {
     if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
@@ -636,6 +666,32 @@ function renderTable() {
   });
 }
 
+function renderRegisterRanking() {
+  const ul = $("#registerRanking");
+  if (!ul) return;
+  ul.innerHTML = "";
+  const ordenados = [...state.atletas].sort((a, b) => {
+    if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
+    return b.treinos - a.treinos;
+  });
+  ordenados.forEach((a, i) => {
+    const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+    const li = document.createElement("li");
+    if (medal) li.classList.add(medal);
+    li.style.setProperty("--athlete-color", colorFor(a.nome));
+    li.innerHTML = `
+      <span class="mr-rank mono">${String(i + 1).padStart(2, "0")}</span>
+      <span class="mr-sw"></span>
+      <span class="mr-name">${escapeHtml(a.nome)}</span>
+      <span class="mr-stat mono"><b>${a.progressoSemanal}</b> \u00b7 ${a.treinos}t</span>
+    `;
+    ul.appendChild(li);
+    if (window.gsap) {
+      gsap.from(li, { opacity: 0, x: -8, duration: .35, delay: Math.min(i * .02, .4), ease: "power2.out" });
+    }
+  });
+}
+
 function refreshOverview() {
   const treinos = getFilteredTreinos();
   renderKpis(treinos);
@@ -645,6 +701,7 @@ function refreshOverview() {
   renderDiaSemana(treinos);
   renderProgresso();
   renderTable();
+  renderRegisterRanking();
   bindCrossHighlight();
 }
 
@@ -831,6 +888,8 @@ function switchTab(view) {
     gsap.fromTo(active, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .45, ease: "power3.out" });
     animateHeroChars(active);
     revealCardsOnScroll(active);
+    bindHeroParallax(active);
+    if (window.ScrollTrigger) ScrollTrigger.refresh();
   }
   bindMagnets();
   bindTilts();
@@ -947,7 +1006,7 @@ function renderAthlete() {
 }
 
 // ===================== HEATMAP (ano inteiro, estilo GitHub) =====================
-const HEATMAP_STATE = { weeks: [], openWeek: null, toastTimer: null };
+const HEATMAP_STATE = { weeks: [] };
 
 function renderAthleteHeatmap(treinos) {
   const container = $("#aHeatmap");
@@ -1074,8 +1133,6 @@ function renderAthleteHeatmap(treinos) {
       cells.push(cell);
     }
 
-    colEl.addEventListener("click", () => showWeekToast(isoW));
-
     HEATMAP_STATE.weeks.push({ iso: isoW, monday: new Date(colMonday), days, el: colEl });
     container.appendChild(colEl);
   }
@@ -1112,101 +1169,9 @@ function renderAthleteHeatmap(treinos) {
 
   $("#heatmapPeriod").textContent = `Jan → Dez · ${year}`;
 
-  closeWeekToast(true);
-
   if (window.gsap) {
     gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .001, from: "start" }, duration: .3, ease: "back.out(2)" });
   }
-}
-
-// ===================== WEEK TOAST =====================
-function showWeekToast(iso) {
-  const weekData = HEATMAP_STATE.weeks.find(w => w.iso === iso);
-  if (!weekData) return;
-
-  // limpa toast anterior
-  if (HEATMAP_STATE.toastTimer) clearTimeout(HEATMAP_STATE.toastTimer);
-
-  HEATMAP_STATE.openWeek = iso;
-  HEATMAP_STATE.weeks.forEach(w => w.el.classList.toggle("is-active", w.iso === iso));
-
-  const toast = $("#weekToast");
-  const row = $("#wtRow");
-  const sunday = new Date(weekData.monday);
-  sunday.setDate(sunday.getDate() + 6);
-
-  $("#wtLabel").textContent = weekLabel(iso);
-  $("#wtRange").textContent = fmtRange(weekData.monday, sunday);
-
-  row.innerHTML = "";
-  weekData.days.forEach((d) => {
-    const el = document.createElement("div");
-    el.className = "wt-day";
-    if (d.isToday) el.classList.add("is-today");
-    el.innerHTML = `
-      <span class="wt-day-name">${d.label}</span>
-      <span class="wt-day-num ${d.count === 0 ? "is-zero" : ""}" data-target="${d.count}">0</span>
-      <span class="wt-day-date">${String(d.date.getDate()).padStart(2,"0")}/${String(d.date.getMonth()+1).padStart(2,"0")}</span>
-    `;
-    row.appendChild(el);
-  });
-
-  toast.hidden = false;
-
-  if (window.gsap) {
-    gsap.killTweensOf(toast);
-    gsap.fromTo(toast,
-      { opacity: 0, y: -40, scale: .94 },
-      { opacity: 1, y: 0, scale: 1, duration: .5, ease: "back.out(1.6)" }
-    );
-    gsap.from(row.children, {
-      y: 14, opacity: 0,
-      duration: .4,
-      stagger: .05,
-      delay: .15,
-      ease: "power2.out",
-    });
-    // count-up nos numerais
-    row.querySelectorAll(".wt-day-num").forEach((el, i) => {
-      const target = Number(el.dataset.target) || 0;
-      const obj = { v: 0 };
-      gsap.to(obj, {
-        v: target, duration: .7, delay: .25 + i * .05, ease: "power2.out",
-        onUpdate: () => { el.textContent = Math.round(obj.v); },
-      });
-    });
-    // barra de progresso (5s para auto-close)
-    const bar = $("#wtProgress");
-    bar.innerHTML = '<i></i>';
-    gsap.fromTo(bar.querySelector("i"), { scaleX: 1 }, {
-      scaleX: 0, duration: 5, ease: "none",
-    });
-  }
-
-  // auto-close em 5s
-  HEATMAP_STATE.toastTimer = setTimeout(() => closeWeekToast(), 5000);
-}
-
-function closeWeekToast(skipAnim) {
-  const toast = $("#weekToast");
-  if (toast.hidden) return;
-  HEATMAP_STATE.openWeek = null;
-  HEATMAP_STATE.weeks.forEach(w => w.el.classList.remove("is-active"));
-  if (HEATMAP_STATE.toastTimer) {
-    clearTimeout(HEATMAP_STATE.toastTimer);
-    HEATMAP_STATE.toastTimer = null;
-  }
-  if (skipAnim || !window.gsap) {
-    toast.hidden = true;
-    return;
-  }
-  gsap.to(toast, {
-    opacity: 0, y: -40, scale: .94, duration: .35, ease: "power2.in",
-    onComplete: () => {
-      toast.hidden = true;
-      gsap.set(toast, { clearProps: "all" });
-    },
-  });
 }
 
 function renderWeekBreakdown(allTreinos, metaSem) {
@@ -1233,7 +1198,7 @@ function renderWeekBreakdown(allTreinos, metaSem) {
     weeks.push({ iso, monday, sunday, count, label: weekLabel(iso) });
   }
 
-  weeks.forEach((w, idx) => {
+  weeks.filter(w => w.count > 0).forEach((w, idx) => {
     const li = document.createElement("li");
     const pct = metaSem > 0 ? Math.min(100, Math.round((w.count / metaSem) * 100)) : 0;
     const isFull = w.count >= metaSem;
@@ -1258,9 +1223,8 @@ function renderWeekBreakdown(allTreinos, metaSem) {
     });
     li.addEventListener("mouseleave", () => {
       const col = HEATMAP_STATE.weeks.find(x => x.iso === w.iso);
-      if (col && HEATMAP_STATE.openWeek !== w.iso) col.el.classList.remove("is-active");
+      if (col) col.el.classList.remove("is-active");
     });
-    li.addEventListener("click", () => showWeekToast(w.iso));
   });
 }
 
@@ -1385,23 +1349,28 @@ function renderAthleteMensal(treinos, color) {
 // ===================== REGISTER =====================
 function showToast(message, type = "success") {
   const toast = $("#toast");
-  toast.textContent = message;
+  const icon = toast.querySelector(".toast-icon");
+  const msg = toast.querySelector(".toast-msg");
   toast.className = `toast ${type}`;
+  if (icon) icon.textContent = type === "error" ? "\u00d7" : "\u2713";
+  if (msg) msg.textContent = message; else toast.textContent = message;
   toast.hidden = false;
   if (window.gsap) {
-    gsap.fromTo(toast, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .3, ease: "power2.out" });
-    gsap.to(toast, { opacity: 0, y: 20, duration: .3, delay: 3.2, ease: "power2.in", onComplete: () => { toast.hidden = true; } });
+    gsap.killTweensOf(toast);
+    gsap.fromTo(toast,
+      { opacity: 0, x: 40, scale: .96 },
+      { opacity: 1, x: 0, scale: 1, duration: .45, ease: "back.out(1.6)" }
+    );
+    gsap.to(toast, {
+      opacity: 0, x: 40, duration: .35, delay: 3.2, ease: "power2.in",
+      onComplete: () => {
+        toast.hidden = true;
+        gsap.set(toast, { clearProps: "all" });
+      },
+    });
   } else {
     setTimeout(() => { toast.hidden = true; }, 3500);
   }
-}
-
-function showFeedback(msg, type) {
-  const el = $("#registerFeedback");
-  el.textContent = msg;
-  el.className = `feedback ${type}`;
-  el.hidden = false;
-  if (window.gsap) gsap.fromTo(el, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: .3, ease: "power2.out" });
 }
 
 async function handleRegister(e) {
@@ -1411,7 +1380,7 @@ async function handleRegister(e) {
   if (!value) return;
   const match = state.atletas.find(a => a.nome.toLowerCase() === value.toLowerCase());
   if (!match) {
-    showFeedback("→ atleta não encontrado.", "error");
+    showToast("atleta não encontrado", "error");
     return;
   }
   const btn = $("#registerBtn");
@@ -1423,13 +1392,11 @@ async function handleRegister(e) {
 
   try {
     await postTreino(match.nome);
-    showFeedback(`✓ +1 treino registrado para ${match.nome}.`, "success");
-    showToast(`+1 · ${match.nome}`, "success");
+    showToast(`+1 treino registrado · ${match.nome}`, "success");
     input.value = "";
     await fullReload();
   } catch (err) {
-    showFeedback(`× falha: ${err.message}`, "error");
-    showToast("erro ao registrar", "error");
+    showToast(`falha ao registrar: ${err.message}`, "error");
   } finally {
     btn.disabled = false;
     loader.hidden = true;
@@ -1454,6 +1421,7 @@ async function fullReload() {
       state.loadedOnce = true;
       animateHeroChars($("#view-overview"));
       revealCardsOnScroll(document);
+      bindHeroParallax(document);
       bindMagnets();
       bindTilts();
       requestAnimationFrame(movePill);
@@ -1516,15 +1484,6 @@ function bindEvents() {
   });
 
   $("#registerForm").addEventListener("submit", handleRegister);
-
-  // week toast close
-  const wtClose = $("#wtClose");
-  if (wtClose) wtClose.addEventListener("click", () => closeWeekToast());
-
-  // ESC fecha toast
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && HEATMAP_STATE.openWeek) closeWeekToast();
-  });
 
   // champions arrows
   $$(".champ-arrow").forEach((btn) => {

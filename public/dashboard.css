@@ -377,8 +377,13 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
 }
 .card { display: flex; flex-direction: column; }
 
+.card, .kpi {
+  transition: transform var(--t-med), border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-med);
+}
 .card:hover, .kpi:hover {
   border-color: var(--border-strong);
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px -22px rgba(0,0,0,.65);
 }
 
 /* corner brackets (sci-fi UI) */
@@ -490,10 +495,11 @@ th {
   font-weight: 500;
 }
 tbody tr {
-  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+  transition: background var(--t-fast), transform var(--t-med), box-shadow var(--t-fast);
   position: relative;
 }
 tbody tr:hover { background: var(--surface-2); }
+tbody tr[data-athlete-row]:hover { transform: translateX(3px); }
 tbody tr.is-highlighted {
   background: linear-gradient(90deg, color-mix(in oklab, var(--athlete-color) 14%, transparent), transparent 80%);
   box-shadow: inset 4px 0 0 var(--athlete-color);
@@ -821,35 +827,72 @@ tbody tr.progress-row.is-highlighted {
   margin-top: 1.25rem;
 }
 .register-form .field { flex: 1; }
-.feedback {
-  margin-top: 1rem;
-  padding: .85rem 1rem;
-  border-radius: var(--radius-sm);
-  font-size: .88rem;
-  border: 1px solid;
-  font-family: "JetBrains Mono", monospace;
-}
-.feedback.success { background: rgba(192,255,62,.06); border-color: rgba(192,255,62,.25); color: var(--c-lime); }
-.feedback.error { background: rgba(248,113,113,.06); border-color: rgba(248,113,113,.25); color: var(--c-rose); }
 
 .register-aside {
   padding: .5rem .5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-.aside-quote {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(1.6rem, 2.6vw, 2.4rem);
-  line-height: 1.05;
-  margin: 0 0 1.5rem;
-  letter-spacing: -.02em;
+.mini-ranking-card { padding: 1.4rem 1.5rem 1.1rem; }
+.mini-ranking-card .card-head { margin-bottom: .9rem; }
+.mini-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.mini-ranking li {
+  display: grid;
+  grid-template-columns: 26px 4px 1fr auto;
+  align-items: center;
+  gap: .7rem;
+  padding: .5rem .25rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .92rem;
+  transition: background var(--t-fast);
+}
+.mini-ranking li:last-child { border-bottom: 0; }
+.mini-ranking li:hover {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--athlete-color) 12%, transparent), transparent 80%);
+}
+.mr-rank {
+  font-size: .72rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.mini-ranking li.gold .mr-rank { color: var(--c-amber); }
+.mini-ranking li.silver .mr-rank { color: #cbd5e1; }
+.mini-ranking li.bronze .mr-rank { color: var(--c-orange); }
+.mr-sw {
+  width: 4px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--athlete-color, var(--accent));
+}
+.mr-name {
+  font-weight: 500;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.aside-quote em { color: var(--accent); font-style: italic; font-weight: 500; }
-.quote-mark {
-  display: block;
-  font-size: 3rem; line-height: 0;
+.mr-stat {
+  font-size: .72rem;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mr-stat b {
   color: var(--accent);
-  margin-bottom: 1rem;
+  font-weight: 600;
 }
+
 .aside-tip { color: var(--text-soft); font-size: .8rem; }
 .kbd {
   display: inline-block;
@@ -1098,140 +1141,6 @@ tbody tr.progress-row.is-highlighted {
   box-shadow: 0 0 6px color-mix(in oklab, var(--athlete-color) 45%, transparent);
 }
 
-/* ============================================================
-   WEEK TOAST (substitui o overlay)
-   ============================================================ */
-.week-toast {
-  position: fixed;
-  top: 88px;
-  left: 1rem;
-  right: 1rem;
-  margin-inline: auto;
-  z-index: 9999;
-  width: min(640px, calc(100vw - 2rem));
-  max-width: 100%;
-  background: linear-gradient(160deg, color-mix(in oklab, var(--athlete-color) 8%, var(--surface)), var(--surface) 65%);
-  border: 1px solid color-mix(in oklab, var(--athlete-color) 35%, var(--border-strong));
-  border-radius: 16px;
-  padding: 1.25rem 1.4rem 1rem;
-  box-shadow: 0 30px 80px -20px rgba(0,0,0,.7),
-              0 0 0 1px rgba(255,255,255,.02) inset;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  overflow: hidden;
-  will-change: transform, opacity;
-}
-.week-toast::before {
-  content: "";
-  position: absolute;
-  top: -50%; right: -30%;
-  width: 60%; height: 80%;
-  background: radial-gradient(circle, color-mix(in oklab, var(--athlete-color) 35%, transparent), transparent 70%);
-  filter: blur(40px);
-  pointer-events: none;
-}
-.wt-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem;
-  position: relative; z-index: 1;
-}
-.wt-head > div { display: flex; flex-direction: column; gap: .15rem; }
-.wt-label {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -.02em;
-  color: var(--athlete-color);
-}
-.wt-range {
-  font-size: .68rem;
-  color: var(--text-dim);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.wt-close {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  border-radius: 50%;
-  width: 32px; height: 32px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-family: inherit;
-  transition: all var(--t-fast);
-}
-.wt-close:hover {
-  background: var(--athlete-color);
-  color: #060608;
-  border-color: var(--athlete-color);
-  transform: rotate(90deg);
-}
-
-.wt-row {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: .4rem;
-  position: relative; z-index: 1;
-}
-.wt-day {
-  display: flex; flex-direction: column;
-  align-items: center;
-  gap: .35rem;
-  padding: .65rem .3rem .8rem;
-  background: rgba(255,255,255,.02);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  position: relative;
-  overflow: hidden;
-  transition: transform var(--t-fast), border-color var(--t-fast);
-}
-.wt-day:hover {
-  transform: translateY(-2px);
-  border-color: var(--athlete-color);
-}
-.wt-day.is-today {
-  background: color-mix(in oklab, var(--athlete-color) 10%, rgba(255,255,255,.02));
-  border-color: var(--athlete-color);
-}
-.wt-day-name {
-  font-family: "JetBrains Mono", monospace;
-  font-size: .6rem;
-  color: var(--text-soft);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.wt-day.is-today .wt-day-name { color: var(--athlete-color); }
-.wt-day-num {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -.03em;
-  color: var(--text);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.wt-day-num.is-zero { color: var(--text-soft); }
-.wt-day-date {
-  font-family: "JetBrains Mono", monospace;
-  font-size: .58rem;
-  color: var(--text-soft);
-}
-.wt-progress {
-  height: 2px;
-  background: rgba(255,255,255,.06);
-  border-radius: 999px;
-  overflow: hidden;
-  position: relative; z-index: 1;
-  margin: 0 -1.4rem -1rem;
-}
-.wt-progress > i {
-  display: block; height: 100%;
-  background: var(--athlete-color);
-  width: 100%;
-  transform-origin: left center;
-}
-
 .hm-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1401,28 +1310,71 @@ tbody tr.progress-row.is-highlighted {
 }
 
 /* ============================================================
-   TOAST
+   TOAST (top-right · success / error)
    ============================================================ */
 .toast {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  top: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: .85rem 1.1rem;
-  font-size: .9rem;
-  font-family: "JetBrains Mono", monospace;
+  border-radius: 12px;
+  padding: .85rem 1.1rem .85rem .9rem;
+  font-size: .92rem;
+  font-family: "Inter", system-ui, sans-serif;
+  letter-spacing: -.005em;
   z-index: 100;
-  max-width: 320px;
+  max-width: 360px;
+  box-shadow: 0 20px 50px -20px rgba(0,0,0,.7),
+              0 0 0 1px rgba(255,255,255,.02) inset;
+  overflow: hidden;
+  isolation: isolate;
 }
-.toast.success { border-left: 3px solid var(--c-lime); }
-.toast.error { border-left: 3px solid var(--c-rose); }
+.toast::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 0% 0%, color-mix(in oklab, var(--toast-color, var(--accent)) 25%, transparent), transparent 60%);
+  z-index: -1;
+}
+.toast-icon {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  background: color-mix(in oklab, var(--toast-color, var(--accent)) 18%, transparent);
+  color: var(--toast-color, var(--accent));
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.toast-msg {
+  flex: 1;
+  font-weight: 500;
+}
+.toast.success { --toast-color: var(--c-lime); border-left: 3px solid var(--c-lime); }
+.toast.error   { --toast-color: var(--c-rose); border-left: 3px solid var(--c-rose); }
 
 /* hidden attribute deve sempre ocultar — GSAP sobrescreve display ao setar
    transformações; reforçamos com !important para evitar toasts vazios visíveis */
 [hidden] { display: none !important; }
+
+/* respeita preferences de redução de movimento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ============================================================
    FOOTER
@@ -1574,21 +1526,6 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   .heatmap .cell { border-radius: 2px; }
   .hm-months { padding-left: 28px; font-size: .55rem; margin-bottom: .25rem; }
 
-  /* week toast: ocupar quase a largura inteira */
-  .week-toast {
-    top: 80px;
-    width: calc(100vw - 1rem);
-    padding: 1rem 1rem .85rem;
-    border-radius: 12px;
-  }
-  .wt-label { font-size: 1.15rem; }
-  .wt-range { font-size: .6rem; }
-  .wt-row { gap: .3rem; }
-  .wt-day { padding: .5rem .25rem .65rem; gap: .25rem; }
-  .wt-day-name { font-size: .52rem; }
-  .wt-day-num { font-size: 1.15rem; }
-  .wt-day-date { font-size: .5rem; }
-
   /* tabela classificação: compactar mas manter legível */
   table { font-size: .85rem; }
   th, td { padding: .5rem .4rem; }
@@ -1618,7 +1555,6 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   /* register */
   .register-form { flex-direction: column; align-items: stretch; gap: .85rem; }
   .btn-primary { width: 100%; justify-content: center; }
-  .aside-quote { font-size: 1.4rem; }
 
   /* heatmap tooltip mais discreto */
   .hm-tooltip { min-width: 110px; padding: .45rem .6rem; }

@@ -172,30 +172,6 @@
         </header>
         <div class="chart-box"><canvas id="chartProgresso"></canvas></div>
       </div>
-
-      <div class="card span-2">
-        <div class="brackets"></div>
-        <header class="card-head">
-          <h3>classificação</h3>
-          <span class="card-tag mono">semanas com meta batida → desempate por treinos</span>
-        </header>
-        <div class="table-wrap">
-          <table id="atletasTable">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Atleta</th>
-                <th class="num">Treinos</th>
-                <th class="num">Semana</th>
-                <th class="num">Meta</th>
-                <th class="num">Sem ✓</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
     </main>
   </section>
 
@@ -235,17 +211,17 @@
             <span class="btn-loader" hidden></span>
           </button>
         </form>
-
-        <div id="registerFeedback" class="feedback" hidden></div>
       </div>
 
       <aside class="register-aside">
-        <p class="aside-quote">
-          <span class="quote-mark">"</span>
-          o resultado<br>
-          é o <em>somatório</em><br>
-          da constância.
-        </p>
+        <div class="card mini-ranking-card">
+          <div class="brackets"></div>
+          <header class="card-head">
+            <h3>classificação</h3>
+            <span class="card-tag mono">top · semana</span>
+          </header>
+          <ol class="mini-ranking" id="registerRanking"></ol>
+        </div>
         <p class="aside-tip mono">// equivale a <span class="kbd">!treino</span> no grupo</p>
       </aside>
     </section>
@@ -456,26 +432,14 @@
 
   <datalist id="athleteOptions"></datalist>
 
-  <!-- ============== WEEK TOAST ============== -->
-  <div id="weekToast" class="week-toast" hidden>
-    <header class="wt-head">
-      <div>
-        <span class="wt-label" id="wtLabel">—</span>
-        <span class="wt-range mono" id="wtRange">—</span>
-      </div>
-      <button class="wt-close" id="wtClose" aria-label="fechar">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    </header>
-    <div class="wt-row" id="wtRow"></div>
-    <div class="wt-progress" id="wtProgress"></div>
-  </div>
-
   <footer class="muted">
     <small class="mono">refresh · 5 min · firebase + chart.js + gsap</small>
   </footer>
 
-  <div id="toast" class="toast" hidden></div>
+  <div id="toast" class="toast" hidden>
+    <span class="toast-icon" aria-hidden="true"></span>
+    <span class="toast-msg"></span>
+  </div>
 
   <script src="dashboard.js"></script>
 </body>
