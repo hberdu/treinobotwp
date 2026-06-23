@@ -131,6 +131,27 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   z-index: 50;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform .45s cubic-bezier(.22,.61,.36,1),
+    background .3s ease,
+    padding .3s ease,
+    border-color .3s ease;
+  will-change: transform;
+}
+/* solidifica quando scroll passa do topo — sensação de "grudar" */
+.topbar.is-scrolled {
+  background: rgba(6,6,8,0.92);
+  border-bottom-color: var(--border-strong);
+  padding-top: calc(.7rem + var(--safe-top));
+  padding-bottom: .7rem;
+  box-shadow: 0 12px 30px -22px rgba(0,0,0,.75);
+}
+/* esconde ao descer (GSAP-style) */
+.topbar.is-hidden { transform: translate3d(0, -100%, 0); }
+  z-index: 50;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 .brand {
   display: flex; align-items: center; gap: .9rem;
@@ -667,7 +688,12 @@ tbody tr.progress-row.is-highlighted {
   margin: 0 auto;
   max-width: 1200px;
   user-select: none;
+  -webkit-user-select: none;
+  /* permite scroll vertical, captura swipe horizontal via JS (Pointer Events) */
+  touch-action: pan-y;
+  cursor: grab;
 }
+.champs-stage:active { cursor: grabbing; }
 .champs-track {
   position: absolute;
   inset: 0;

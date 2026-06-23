@@ -886,6 +886,64 @@ function scrollChampions(dir) {
   if (dir > 0) nextChamp(); else prevChamp();
 }
 
+function bindChampsSwipe() {
+  const stage = document.querySelector(".champs-stage");
+  if (!stage || stage.dataset.swipeBound) return;
+  stage.dataset.swipeBound = "1";
+
+  const SWIPE_DIST = 40;       // px mínimos para considerar swipe
+  const SWIPE_VELOCITY = 0.3;  // px/ms para flick rápido
+  const AXIS_THRESHOLD = 1.2;  // |dx| precisa ser > |dy| * 1.2
+  let pointerId = null;
+  let startX = 0, startY = 0, startT = 0;
+  let lockedAxis = null; // null | "x" | "y"
+
+  stage.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    startT = performance.now();
+    lockedAxis = null;
+  }, { passive: true });
+
+  stage.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== pointerId) return;
+    if (lockedAxis) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    lockedAxis = Math.abs(dx) > Math.abs(dy) * AXIS_THRESHOLD ? "x" : "y";
+    if (lockedAxis === "x") {
+      try { stage.setPointerCapture(pointerId); } catch (_) {}
+    }
+  }, { passive: true });
+
+  const finish = (e) => {
+    if (e.pointerId !== pointerId) return;
+    const dx = e.clientX - startX;
+    const dt = performance.now() - startT;
+    const releasedId = pointerId;
+    pointerId = null;
+
+    if (lockedAxis === "x") {
+      try { stage.releasePointerCapture(releasedId); } catch (_) {}
+      const velocity = Math.abs(dx) / Math.max(dt, 1);
+      if (Math.abs(dx) >= SWIPE_DIST || velocity >= SWIPE_VELOCITY) {
+        if (dx < 0) nextChamp(); else prevChamp();
+      }
+    }
+    lockedAxis = null;
+  };
+  stage.addEventListener("pointerup", finish, { passive: true });
+  stage.addEventListener("pointercancel", finish, { passive: true });
+
+  // tap em card lateral leva para ele (mantém UX desktop)
+  stage.addEventListener("click", (e) => {
+    if (lockedAxis === "x") { e.preventDefault(); e.stopPropagation(); }
+  });
+}
+
 // ===================== ATHLETE VIEW =====================
 function populateAthleteList() {
   const dl = $("#athleteOptions");
@@ -1544,10 +1602,56 @@ function bindTopbarObserver() {
   }
 }
 
+// ===================== TOPBAR SCROLL (hide on down, show on up) =====================
+function bindTopbarScroll() {
+  const topbar = document.querySelector(".topbar");
+  if (!topbar) return;
+
+  const SCROLL_THRESHOLD = 12;      // px mínimos do topo antes de começar a esconder
+  const HIDE_DELTA = 6;             // delta para considerar direção
+  let lastY = window.scrollY;
+  let ticking = false;
+
+  const onScroll = () => {
+    const y = window.scrollY;
+    const dy = y - lastY;
+
+    // estado "scrolled" (solidifica visual)
+    topbar.classList.toggle("is-scrolled", y > 4);
+
+    if (y < SCROLL_THRESHOLD) {
+      topbar.classList.remove("is-hidden");
+    } else if (dy > HIDE_DELTA) {
+      // descendo
+      topbar.classList.add("is-hidden");
+    } else if (dy < -HIDE_DELTA) {
+      // subindo
+      topbar.classList.remove("is-hidden");
+    }
+    lastY = y;
+    ticking = false;
+  };
+
+  window.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(onScroll);
+  }, { passive: true });
+
+  // mostra ao receber foco em algum input (útil se estiver escondido)
+  document.addEventListener("focusin", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) {
+      topbar.classList.remove("is-hidden");
+    }
+  });
+}
+
 // ===================== INIT =====================
 (function init() {
   bindEvents();
   bindTopbarObserver();
+  bindTopbarScroll();
+  bindChampsSwipe();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
   state.filters.to = to;
