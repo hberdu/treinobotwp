@@ -1463,11 +1463,13 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
 
 /* topbar wrap em telas médias */
 @media (max-width: 920px) {
+  :root { --topbar-h: 116px; }
   .topbar {
     grid-template-columns: auto auto;
     grid-template-rows: auto auto;
-    gap: .75rem 1rem;
-    padding: .9rem 1rem;
+    gap: .65rem 1rem;
+    padding: .85rem 1rem;
+    padding-top: calc(.85rem + var(--safe-top));
   }
   .brand { order: 1; }
   .actions { order: 2; justify-self: end; }
@@ -1633,13 +1635,19 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
 
 /* phones muito pequenos */
 @media (max-width: 380px) {
-  .hero-title { font-size: 1.85rem; }
+  :root { --topbar-h: 106px; }
+  .hero-title { font-size: 1.75rem; }
   .kpis { grid-template-columns: 1fr; }
-  .ahero-counts { flex-direction: column; gap: .75rem; }
+  .ahero-counts { flex-direction: column; gap: .65rem; }
+  .ahero-right { flex-direction: column; align-items: flex-start; }
   .weeks-list { grid-template-columns: 1fr; }
   .hm-stats { grid-template-columns: 1fr; }
-  .champs-stage { height: 320px; }
-  .champ-card { width: 220px; height: 290px; margin: -145px 0 0 -110px; }
+  .champs-stage { height: 300px; }
+  .champ-card { width: 200px; height: 270px; margin: -135px 0 0 -100px; padding: 1rem; }
+  .champ-rank b { font-size: 1.5rem; }
+  .champ-name { font-size: 1.15rem; }
+  .tab { padding: .4rem .65rem; font-size: .72rem; gap: .35rem; }
+  .tab-num { font-size: .56rem; }
 }
 
 /* desativa tilts em touch */

@@ -1521,13 +1521,33 @@ function bindEvents() {
     requestAnimationFrame(() => {
       movePill();
       layoutChamps();
+      updateTopbarHeight();
     });
   });
+}
+
+// ===================== TOPBAR HEIGHT (fixed) =====================
+function updateTopbarHeight() {
+  const topbar = document.querySelector(".topbar");
+  if (!topbar) return;
+  const h = topbar.getBoundingClientRect().height;
+  if (h > 0) document.documentElement.style.setProperty("--topbar-h", `${Math.round(h)}px`);
+}
+
+function bindTopbarObserver() {
+  const topbar = document.querySelector(".topbar");
+  if (!topbar) return;
+  updateTopbarHeight();
+  if ("ResizeObserver" in window) {
+    const ro = new ResizeObserver(() => updateTopbarHeight());
+    ro.observe(topbar);
+  }
 }
 
 // ===================== INIT =====================
 (function init() {
   bindEvents();
+  bindTopbarObserver();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
   state.filters.to = to;
