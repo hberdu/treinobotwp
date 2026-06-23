@@ -1602,33 +1602,14 @@ function bindTopbarObserver() {
   }
 }
 
-// ===================== TOPBAR SCROLL (hide on down, show on up) =====================
+// ===================== TOPBAR SCROLL (solidifica ao rolar, sempre visível) =====================
 function bindTopbarScroll() {
   const topbar = document.querySelector(".topbar");
   if (!topbar) return;
 
-  const SCROLL_THRESHOLD = 12;      // px mínimos do topo antes de começar a esconder
-  const HIDE_DELTA = 6;             // delta para considerar direção
-  let lastY = window.scrollY;
   let ticking = false;
-
   const onScroll = () => {
-    const y = window.scrollY;
-    const dy = y - lastY;
-
-    // estado "scrolled" (solidifica visual)
-    topbar.classList.toggle("is-scrolled", y > 4);
-
-    if (y < SCROLL_THRESHOLD) {
-      topbar.classList.remove("is-hidden");
-    } else if (dy > HIDE_DELTA) {
-      // descendo
-      topbar.classList.add("is-hidden");
-    } else if (dy < -HIDE_DELTA) {
-      // subindo
-      topbar.classList.remove("is-hidden");
-    }
-    lastY = y;
+    topbar.classList.toggle("is-scrolled", window.scrollY > 4);
     ticking = false;
   };
 
@@ -1638,12 +1619,7 @@ function bindTopbarScroll() {
     requestAnimationFrame(onScroll);
   }, { passive: true });
 
-  // mostra ao receber foco em algum input (útil se estiver escondido)
-  document.addEventListener("focusin", (e) => {
-    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "SELECT")) {
-      topbar.classList.remove("is-hidden");
-    }
-  });
+  onScroll();
 }
 
 // ===================== INIT =====================

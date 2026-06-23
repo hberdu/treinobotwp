@@ -131,13 +131,7 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   z-index: 50;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  transform: translate3d(0, 0, 0);
-  transition:
-    transform .45s cubic-bezier(.22,.61,.36,1),
-    background .3s ease,
-    padding .3s ease,
-    border-color .3s ease;
-  will-change: transform;
+  transition: background .3s ease, padding .3s ease, border-color .3s ease, box-shadow .3s ease;
 }
 /* solidifica quando scroll passa do topo — sensação de "grudar" */
 .topbar.is-scrolled {
@@ -146,12 +140,6 @@ body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index
   padding-top: calc(.7rem + var(--safe-top));
   padding-bottom: .7rem;
   box-shadow: 0 12px 30px -22px rgba(0,0,0,.75);
-}
-/* esconde ao descer (GSAP-style) */
-.topbar.is-hidden { transform: translate3d(0, -100%, 0); }
-  z-index: 50;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
 .brand {
   display: flex; align-items: center; gap: .9rem;
