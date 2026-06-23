@@ -1607,7 +1607,10 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   .tabs {
     order: 3;
     grid-column: 1 / -1;
-    justify-self: stretch;
+    justify-self: center;
+    justify-content: center;
+    width: auto;
+    max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -1646,7 +1649,7 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   #lastUpdate { display: none; }
 
   /* tabs compactas com texto menor */
-  .tabs { padding: 3px; }
+  .tabs { padding: 3px; justify-content: center; }
   .tab { padding: .42rem .75rem; font-size: .76rem; }
   .tab-num { font-size: .6rem; }
 
