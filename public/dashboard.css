@@ -1445,11 +1445,13 @@ tbody tr.progress-row.is-highlighted {
    RADIAL MENU  (fixo, bottom-right · estilo GSAP demo)
    ============================================================ */
 .radial-menu {
-  position: fixed;
-  right: calc(1.5rem + var(--safe-bottom, 0px));
-  bottom: calc(1.5rem + var(--safe-bottom, 0px));
+  position: fixed !important;
+  right: calc(1.5rem + var(--safe-bottom, 0px)) !important;
+  bottom: calc(1.5rem + var(--safe-bottom, 0px)) !important;
+  left: auto !important;
+  top: auto !important;
   width: 64px; height: 64px;
-  z-index: 60;
+  z-index: 9999;
   pointer-events: none;
 }
 .radial-menu > * { pointer-events: auto; }
@@ -1542,20 +1544,20 @@ tbody tr.progress-row.is-highlighted {
 .radial-menu.is-open .radial-item:nth-child(4) { transform: translate(35px, -110px)   scale(1); transition-delay: .16s; }
 
 .radial-backdrop {
-  position: fixed;
+  position: fixed !important;
   inset: 0;
   background: radial-gradient(circle at bottom right, rgba(6,6,8,.6) 0%, rgba(6,6,8,.2) 40%, transparent 70%);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--t-med);
-  z-index: 59;
+  z-index: 9998;
 }
 .radial-backdrop.is-open { opacity: 1; pointer-events: auto; }
 
 @media (max-width: 700px) {
   .radial-menu {
-    right: 1rem;
-    bottom: calc(1rem + var(--safe-bottom, 0px));
+    right: 1rem !important;
+    bottom: calc(1rem + var(--safe-bottom, 0px)) !important;
     width: 58px; height: 58px;
   }
   .radial-toggle { width: 58px; height: 58px; }
