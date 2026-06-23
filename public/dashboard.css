@@ -108,7 +108,7 @@ body {
 .orb.o3 { width: 600px; height: 600px; bottom: -260px; left: 30%;
   background: radial-gradient(circle, var(--c-lime), transparent 60%); }
 
-body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs) { position: relative; z-index: 1; }
+body > :not(.bg-noise):not(.bg-grid):not(.bg-orbs):not(.radial-menu):not(.radial-backdrop):not(#toast) { position: relative; z-index: 1; }
 
 /* ============================================================
    TOPBAR  (sticky · acompanha o scroll naturalmente)
