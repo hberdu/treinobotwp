@@ -311,7 +311,7 @@ function animateHeroChars(view) {
       }
     );
   });
-  const subs = view.querySelectorAll(".hero-eyebrow, .hero-meta, .hero-sub, .aside-tip");
+  const subs = view.querySelectorAll(".hero-eyebrow, .hero-meta, .hero-sub, .aside-quote, .aside-tip");
   if (subs.length) {
     gsap.killTweensOf(subs);
     gsap.fromTo(subs,

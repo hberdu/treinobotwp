@@ -41,6 +41,22 @@
 html, body { margin: 0; padding: 0; }
 html, body { overflow-x: clip; }
 
+/* Global scrollbar · ultra fina, quase invisível (estilo GSAP demos) */
+html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.06);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background var(--t-fast);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--accent) 40%, rgba(255,255,255,.1));
+  background-clip: padding-box;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -836,6 +852,32 @@ tbody tr.progress-row.is-highlighted {
 }
 .mini-ranking-card { padding: 1.4rem 1.5rem 1.1rem; }
 .mini-ranking-card .card-head { margin-bottom: .9rem; }
+.mini-ranking-scroll {
+  position: relative;
+  max-height: 360px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  /* fade GSAP-style nas bordas, garante "continua além" sem barra visível */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 28px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 28px), transparent 100%);
+  padding: .2rem .25rem;
+  margin: -.2rem -.25rem;
+}
+.mini-ranking-scroll::-webkit-scrollbar { width: 4px; }
+.mini-ranking-scroll::-webkit-scrollbar-track { background: transparent; }
+.mini-ranking-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0);
+  border-radius: 999px;
+  transition: background var(--t-fast);
+}
+.mini-ranking-scroll:hover::-webkit-scrollbar-thumb,
+.mini-ranking-scroll:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.mini-ranking-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.mini-ranking-scroll:hover { scrollbar-color: color-mix(in oklab, var(--accent) 35%, transparent) transparent; }
+
 .mini-ranking {
   list-style: none;
   margin: 0;
@@ -843,8 +885,6 @@ tbody tr.progress-row.is-highlighted {
   display: flex;
   flex-direction: column;
   gap: .15rem;
-  max-height: 420px;
-  overflow-y: auto;
 }
 .mini-ranking li {
   display: grid;
@@ -891,6 +931,22 @@ tbody tr.progress-row.is-highlighted {
 .mr-stat b {
   color: var(--accent);
   font-weight: 600;
+}
+
+.aside-quote {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -.02em;
+  color: var(--text);
+}
+.aside-quote em { color: var(--accent); font-style: italic; font-weight: 500; }
+.quote-mark {
+  display: block;
+  font-size: 2.4rem; line-height: 0;
+  color: var(--accent);
+  margin-bottom: 1rem;
 }
 
 .aside-tip { color: var(--text-soft); font-size: .8rem; }
