@@ -443,16 +443,19 @@ function getFilteredTreinos() {
 }
 
 function renderKpis(treinos) {
-  animateCounter($("#kpiAtletas"), state.atletas.length);
-  animateCounter($("#kpiTreinos"), treinos.length);
-  const media = state.atletas.length ? (treinos.length / state.atletas.length) : 0;
-  animateCounter($("#kpiMedia"), media, 1);
+  const kAtl = $("#kpiAtletas"); if (kAtl) animateCounter(kAtl, state.atletas.length);
+  const kTr  = $("#kpiTreinos");  if (kTr)  animateCounter(kTr, treinos.length);
+  const kMed = $("#kpiMedia");
+  if (kMed) {
+    const media = state.atletas.length ? (treinos.length / state.atletas.length) : 0;
+    animateCounter(kMed, media, 1);
+  }
   const today = startOfDay(new Date());
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
   const hoje = treinos.filter(t => {
     const d = new Date(t.data); return d >= today && d < tomorrow;
   }).length;
-  animateCounter($("#kpiHoje"), hoje);
+  const kHj = $("#kpiHoje"); if (kHj) animateCounter(kHj, hoje);
 
   $("#heroAtletas").textContent = state.atletas.length;
   $("#heroTreinos").textContent = treinos.length;
@@ -955,14 +958,33 @@ function populateAthleteList() {
   });
 }
 
-function switchTab(view) {
+const TABS_ORDER = ["overview", "register", "athlete"];
+
+function currentView() {
+  const el = document.querySelector(".view.is-active");
+  return el ? el.id.replace("view-", "") : null;
+}
+
+function switchTab(view, opts = {}) {
+  const prev = currentView();
+  const dir = opts.dir != null ? opts.dir : (() => {
+    const a = TABS_ORDER.indexOf(prev);
+    const b = TABS_ORDER.indexOf(view);
+    if (a < 0 || b < 0) return 0;
+    return b > a ? 1 : (b < a ? -1 : 0);
+  })();
+
   const tabs = $(".tabs");
   $$(".tab").forEach(t => t.classList.toggle("is-active", t.dataset.view === view));
   movePill();
   $$(".view").forEach(v => v.classList.toggle("is-active", v.id === `view-${view}`));
   const active = $(`#view-${view}`);
   if (window.gsap) {
-    gsap.fromTo(active, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .45, ease: "power3.out" });
+    const xFrom = dir === 0 ? 0 : (dir > 0 ? 40 : -40);
+    gsap.fromTo(active,
+      { opacity: 0, x: xFrom, y: 12 },
+      { opacity: 1, x: 0, y: 0, duration: .5, ease: "power3.out" }
+    );
     animateHeroChars(active);
     revealCardsOnScroll(active);
     bindHeroParallax(active);
@@ -970,6 +992,67 @@ function switchTab(view) {
   }
   bindMagnets();
   bindTilts();
+}
+
+function bindGlobalSwipe() {
+  // gesto longo de página troca de view (1↔2↔3)
+  const root = document.body;
+  if (root.dataset.pageSwipeBound) return;
+  root.dataset.pageSwipeBound = "1";
+
+  const SWIPE_DIST = () => Math.max(110, window.innerWidth * 0.22);
+  const SWIPE_VELOCITY = 0.55; // px/ms (flick)
+  const AXIS_RATIO = 1.6;      // mais exigente que o swipe do carrossel
+  const EXEMPT_SELECTOR = [
+    ".champs-stage",
+    ".heatmap-card", ".heatmap-wrap", ".hm-months",
+    ".mini-ranking-scroll",
+    ".table-wrap",
+    ".radial-menu", ".radial-backdrop",
+    "input", "textarea", "select", "button", "a",
+  ].join(",");
+
+  let pid = null, sx = 0, sy = 0, st = 0;
+  let locked = null;   // null | "x" | "y"
+  let blocked = false;
+
+  window.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") return; // só toque/pen
+    blocked = !!(e.target && e.target.closest && e.target.closest(EXEMPT_SELECTOR));
+    if (blocked) return;
+    pid = e.pointerId;
+    sx = e.clientX; sy = e.clientY; st = performance.now();
+    locked = null;
+  }, { passive: true });
+
+  window.addEventListener("pointermove", (e) => {
+    if (blocked || e.pointerId !== pid || locked) return;
+    const dx = e.clientX - sx;
+    const dy = e.clientY - sy;
+    if (Math.abs(dx) < 14 && Math.abs(dy) < 14) return;
+    locked = Math.abs(dx) > Math.abs(dy) * AXIS_RATIO ? "x" : "y";
+  }, { passive: true });
+
+  const finish = (e) => {
+    if (e.pointerId !== pid) return;
+    const dx = e.clientX - sx;
+    const dt = performance.now() - st;
+    pid = null;
+    if (locked !== "x") { locked = null; return; }
+    locked = null;
+
+    const v = Math.abs(dx) / Math.max(dt, 1);
+    if (Math.abs(dx) < SWIPE_DIST() && v < SWIPE_VELOCITY) return;
+
+    const cur = currentView();
+    const i = TABS_ORDER.indexOf(cur);
+    if (i < 0) return;
+    const targetIdx = dx < 0 ? i + 1 : i - 1;
+    if (targetIdx < 0 || targetIdx >= TABS_ORDER.length) return;
+    switchTab(TABS_ORDER[targetIdx], { dir: dx < 0 ? 1 : -1 });
+  };
+  window.addEventListener("pointerup", finish, { passive: true });
+  window.addEventListener("pointercancel", finish, { passive: true });
 }
 
 function movePill() {
@@ -1223,6 +1306,7 @@ function renderAthleteHeatmap(treinos) {
   monthsSpan.forEach((m) => {
     const s = document.createElement("span");
     s.style.flex = `${m.cols} 0 0`;
+    s.style.setProperty("--m-cols", m.cols);
     s.textContent = m.label;
     monthsEl.appendChild(s);
   });
@@ -1249,6 +1333,24 @@ function renderAthleteHeatmap(treinos) {
   if (window.gsap) {
     gsap.from(cells, { scale: 0, opacity: 0, stagger: { each: .001, from: "start" }, duration: .3, ease: "back.out(2)" });
   }
+
+  bindHeatmapScrollSync();
+}
+
+function bindHeatmapScrollSync() {
+  const months = document.getElementById("hmMonths");
+  const wrap = document.querySelector(".heatmap-card .heatmap-wrap");
+  if (!months || !wrap || wrap.dataset.syncBound) return;
+  wrap.dataset.syncBound = "1";
+  let lock = false;
+  const sync = (a, b) => {
+    if (lock) return;
+    lock = true;
+    b.scrollLeft = a.scrollLeft;
+    requestAnimationFrame(() => { lock = false; });
+  };
+  wrap.addEventListener("scroll", () => sync(wrap, months), { passive: true });
+  months.addEventListener("scroll", () => sync(months, wrap), { passive: true });
 }
 
 function renderWeekBreakdown(allTreinos, metaSem) {
@@ -1656,6 +1758,7 @@ function bindRadialMenu() {
   bindEvents();
   bindRadialMenu();
   bindChampsSwipe();
+  bindGlobalSwipe();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
   state.filters.to = to;

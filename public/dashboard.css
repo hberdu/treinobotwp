@@ -1721,13 +1721,59 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   .hm-stat em { font-size: .65rem; }
   .hm-stat-label { font-size: .58rem; }
 
-  /* heatmap mobile: grid fluido continua, células ficam menores naturalmente */
-  .heatmap-wrap { grid-template-columns: 24px 1fr; gap: 4px; padding-bottom: .5rem; }
-  .hm-days { gap: 3px; font-size: .54rem; }
-  .heatmap { gap: 2.5px; }
-  .heatmap .week-col { gap: 2.5px; }
-  .heatmap .cell { border-radius: 2px; }
-  .hm-months { padding-left: 28px; font-size: .55rem; margin-bottom: .25rem; }
+  /* heatmap mobile: rolagem horizontal dentro do card (mantém células legíveis) */
+  .heatmap-card .hm-months,
+  .heatmap-card .heatmap-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--athlete-color) 35%, transparent) transparent;
+  }
+  .heatmap-card .hm-months::-webkit-scrollbar,
+  .heatmap-card .heatmap-wrap::-webkit-scrollbar { height: 4px; }
+  .heatmap-card .hm-months::-webkit-scrollbar-track,
+  .heatmap-card .heatmap-wrap::-webkit-scrollbar-track { background: transparent; }
+  .heatmap-card .hm-months::-webkit-scrollbar-thumb,
+  .heatmap-card .heatmap-wrap::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--athlete-color) 35%, transparent);
+    border-radius: 999px;
+  }
+
+  .heatmap-wrap {
+    grid-template-columns: 22px max-content;
+    gap: 4px;
+    padding-bottom: .35rem;
+  }
+  .hm-days {
+    gap: 3px;
+    font-size: .54rem;
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 2;
+    padding-right: 4px;
+  }
+  .heatmap {
+    /* largura fixa por coluna em mobile = sai do modo 1fr e habilita scroll */
+    grid-template-columns: repeat(var(--week-cols, 53), 12px);
+    gap: 3px;
+  }
+  .heatmap .week-col { gap: 3px; }
+  .heatmap .cell { border-radius: 2px; width: 12px; height: 12px; }
+
+  .hm-months {
+    padding-left: 26px;
+    font-size: .55rem;
+    margin-bottom: .25rem;
+    gap: 3px;
+  }
+  .hm-months span {
+    /* converte a proporção em colunas (cada uma 12px + 3px gap) */
+    flex: 0 0 auto !important;
+    min-width: calc(var(--m-cols, 1) * 15px);
+  }
 
   /* tabela classificação: compactar mas manter legível */
   table { font-size: .85rem; }
