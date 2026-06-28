@@ -94,26 +94,20 @@
       </div>
     </section>
 
-    <!-- ============== CHAMPIONS CAROUSEL (FLIP 3D) ============== -->
-    <section class="champs">
-      <header class="champs-head">
+    <!-- ============== RANK RACE — leaderboard com sparklines ============== -->
+    <section class="rank-race">
+      <header class="rank-race-head">
         <div>
           <span class="hero-eyebrow mono">// campeões da semana</span>
-          <h2 class="champs-title">Ranking Kchaw</h2>
+          <h2 class="rank-race-title">Ranking Kchaw</h2>
         </div>
-        <div class="champs-nav">
-          <button class="champ-arrow" data-dir="-1" aria-label="anterior">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          <button class="champ-arrow" data-dir="1" aria-label="próximo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
+        <div class="rank-race-legend mono">
+          <span class="rrl-item"><i class="rrl-sw"></i> esta semana</span>
+          <span class="rrl-sep">·</span>
+          <span class="rrl-item"><svg class="rrl-spark" viewBox="0 0 28 10" width="28" height="10"><polyline points="0,8 4,6 8,7 12,4 16,5 20,2 24,3 28,1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> últimas 8 sem</span>
         </div>
       </header>
-      <div class="champs-stage">
-        <div class="champs-track" id="champsRail"></div>
-      </div>
-      <div class="champs-dots" id="champsDots"></div>
+      <div class="rank-race-list" id="rankRace"></div>
     </section>
 
     <main class="grid">

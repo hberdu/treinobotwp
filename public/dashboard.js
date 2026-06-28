@@ -717,7 +717,7 @@ function renderRegisterRanking() {
 function refreshOverview() {
   const treinos = getFilteredTreinos();
   renderKpis(treinos);
-  renderChampions(treinos);
+  renderRankRace();
   renderRanking(treinos);
   renderSemanal(treinos);
   renderDiaSemana(treinos);
@@ -727,223 +727,186 @@ function refreshOverview() {
   bindCrossHighlight();
 }
 
-// ===================== CHAMPIONS CAROUSEL (3D coverflow) =====================
-const CHAMPS_STATE = { cards: [], current: 0, autoTimer: null };
+// ===================== RANK RACE (leaderboard com sparklines) =====================
+function buildSparkline(values, color, width = 96, height = 28) {
+  const n = values.length;
+  if (!n) return "";
+  const max = Math.max(1, ...values);
+  const stepX = n > 1 ? width / (n - 1) : 0;
+  const pts = values.map((v, i) => {
+    const x = (n === 1 ? width / 2 : i * stepX);
+    const y = height - (v / max) * (height - 4) - 2;
+    return [x, y];
+  });
+  const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(1)},${height} L${pts[0][0].toFixed(1)},${height} Z`;
+  const lastX = pts[pts.length - 1][0].toFixed(1);
+  const lastY = pts[pts.length - 1][1].toFixed(1);
+  const gradId = `sg-${Math.random().toString(36).slice(2, 8)}`;
+  return `
+    <svg class="rr-spark" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.32"/>
+          <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#${gradId})"/>
+      <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${lastX}" cy="${lastY}" r="2.6" fill="${color}"/>
+    </svg>
+  `;
+}
 
-function renderChampions() {
-  const track = $("#champsRail");
-  if (!track) return;
-  track.innerHTML = "";
-  $("#champsDots").innerHTML = "";
+function weeklySeriesFor(nome, weeks = 8) {
+  const today = startOfDay(new Date());
+  const daysSinceMonday = (today.getDay() + 6) % 7;
+  const thisMonday = new Date(today);
+  thisMonday.setDate(thisMonday.getDate() - daysSinceMonday);
+
+  const buckets = new Array(weeks).fill(0);
+  const start = new Date(thisMonday);
+  start.setDate(start.getDate() - (weeks - 1) * 7);
+
+  for (const t of state.treinos) {
+    if (t.nome !== nome) continue;
+    const d = new Date(t.data);
+    if (d < start) continue;
+    const diffDays = Math.floor((d - start) / 86400000);
+    const idx = Math.floor(diffDays / 7);
+    if (idx >= 0 && idx < weeks) buckets[idx]++;
+  }
+  return buckets;
+}
+
+function renderRankRace() {
+  const list = $("#rankRace");
+  if (!list) return;
+  list.innerHTML = "";
 
   const ordenados = [...state.atletas].sort((a, b) => {
     if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
     return b.treinos - a.treinos;
   });
 
+  if (ordenados.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "rr-empty mono";
+    empty.textContent = "// sem dados ainda";
+    list.appendChild(empty);
+    return;
+  }
+
+  // contagem da semana atual (segunda → hoje)
   const today = startOfDay(new Date());
   const daysSinceMonday = (today.getDay() + 6) % 7;
   const monday = new Date(today);
   monday.setDate(monday.getDate() - daysSinceMonday);
-
-  const treinosBySemana = {};
+  const treinosSemana = {};
   for (const t of state.treinos) {
     const d = new Date(t.data);
-    if (d >= monday) treinosBySemana[t.nome] = (treinosBySemana[t.nome] || 0) + 1;
+    if (d >= monday) treinosSemana[t.nome] = (treinosSemana[t.nome] || 0) + 1;
   }
 
   const top = ordenados.slice(0, 8);
-  if (top.length === 0) {
-    const empty = document.createElement("article");
-    empty.className = "champ-card empty";
-    empty.textContent = "// sem dados ainda";
-    track.appendChild(empty);
-    return;
-  }
+  const maxSemana = Math.max(1, ...top.map(a => treinosSemana[a.nome] || 0));
+  const maxProgresso = Math.max(1, ...top.map(a => a.progressoSemanal || 0));
 
-  const maxSemana = Math.max(1, ...top.map(a => a.progressoSemanal || 0));
-  const meta = state.meta || 5;
-
-  CHAMPS_STATE.cards = [];
+  const rows = [];
   top.forEach((a, i) => {
-    const card = document.createElement("article");
     const col = colorFor(a.nome);
-    card.className = "champ-card";
-    card.style.setProperty("--champ-color", col);
-    const pctBar = Math.min(100, Math.round((a.progressoSemanal / Math.max(maxSemana, 1)) * 100));
-    card.innerHTML = `
-      <div class="champ-rank">
-        <b>${i + 1}</b>
-        <span>${i === 0 ? "líder · ★" : "top " + (i + 1)}</span>
-      </div>
-      <div class="champ-name">${escapeHtml(a.nome)}</div>
-      <div class="champ-bar"><i data-pct="${pctBar}"></i></div>
-      <div class="champ-metrics">
-        <div class="champ-metric">
-          <span class="champ-metric-num">${treinosBySemana[a.nome] || 0}</span>
-          <span class="champ-metric-label">esta sem.</span>
-        </div>
-        <div class="champ-metric">
-          <span class="champ-metric-num">${a.progressoSemanal}</span>
-          <span class="champ-metric-label">sem. ✓</span>
-        </div>
-        <div class="champ-metric">
-          <span class="champ-metric-num">${a.treinos}</span>
-          <span class="champ-metric-label">total</span>
-        </div>
-      </div>
-    `;
-    card.addEventListener("click", () => {
-      const idx = CHAMPS_STATE.cards.indexOf(card);
-      if (idx === CHAMPS_STATE.current) {
-        openAthleteView(a.nome);
-      } else {
-        goToChamp(idx);
-      }
-    });
-    track.appendChild(card);
-    CHAMPS_STATE.cards.push(card);
+    const semana = treinosSemana[a.nome] || 0;
+    const pctSemana = Math.round((semana / maxSemana) * 100);
+    const pctProgresso = Math.round((a.progressoSemanal / maxProgresso) * 100);
+    const medalCls = i === 0 ? "is-gold" : i === 1 ? "is-silver" : i === 2 ? "is-bronze" : "";
 
-    // dot indicator
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    dot.addEventListener("click", () => goToChamp(i));
-    $("#champsDots").appendChild(dot);
-  });
+    const row = document.createElement("article");
+    row.className = `rr-row${i === 0 ? " is-leader" : ""} ${medalCls}`;
+    row.style.setProperty("--rr-color", col);
+    row.dataset.athlete = a.nome;
 
-  CHAMPS_STATE.current = 0;
-  layoutChamps();
-
-  // anima bars com delay
-  CHAMPS_STATE.cards.forEach((c, i) => {
-    const fill = c.querySelector(".champ-bar > i");
-    if (fill) {
-      const pct = fill.dataset.pct;
-      if (window.gsap) gsap.to(fill, { width: pct + "%", duration: 1, delay: .6 + i * .08, ease: "power2.out" });
-      else fill.style.width = pct + "%";
+    if (i === 0) {
+      // LEADER — linha maior, com tipografia destacada e barra de progresso
+      row.innerHTML = `
+        <div class="rr-leader-badge">
+          <span class="rr-leader-tag mono">líder · 01</span>
+          <svg class="rr-crown" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+            <path d="M3 7l4.5 3.5L12 4l4.5 6.5L21 7l-1.6 11H4.6L3 7zm2.5 13h13v1.5h-13V20z"/>
+          </svg>
+        </div>
+        <div class="rr-leader-name">${escapeHtml(a.nome)}</div>
+        <div class="rr-leader-bar">
+          <span class="rr-leader-fill" data-pct="${pctProgresso}"></span>
+          <span class="rr-leader-ticks">
+            ${Array.from({ length: 10 }, () => `<i></i>`).join("")}
+          </span>
+        </div>
+        <div class="rr-leader-stats">
+          <div class="rr-stat">
+            <span class="rr-stat-val counter" data-target="${semana}">0</span>
+            <span class="rr-stat-lbl mono">esta sem.</span>
+          </div>
+          <span class="rr-stat-sep"></span>
+          <div class="rr-stat">
+            <span class="rr-stat-val counter" data-target="${a.progressoSemanal}">0</span>
+            <span class="rr-stat-lbl mono">sem. ✓</span>
+          </div>
+          <span class="rr-stat-sep"></span>
+          <div class="rr-stat">
+            <span class="rr-stat-val counter" data-target="${a.treinos}">0</span>
+            <span class="rr-stat-lbl mono">total</span>
+          </div>
+        </div>
+      `;
+    } else {
+      // DEMAIS — linha enxuta com sparkline + número grande à direita
+      const series = weeklySeriesFor(a.nome, 8);
+      row.innerHTML = `
+        <span class="rr-pos">${String(i + 1).padStart(2, "0")}</span>
+        <span class="rr-dot"></span>
+        <span class="rr-name">${escapeHtml(a.nome)}</span>
+        <div class="rr-spark-wrap">${buildSparkline(series, col, 110, 30)}</div>
+        <div class="rr-bar">
+          <span class="rr-bar-fill" data-pct="${pctSemana}"></span>
+        </div>
+        <div class="rr-side">
+          <span class="rr-side-num">${semana}</span>
+          <span class="rr-side-lbl mono">esta sem.</span>
+        </div>
+        <div class="rr-aside mono">
+          <span><b>${a.progressoSemanal}</b>sem ✓</span>
+          <span><b>${a.treinos}</b>total</span>
+        </div>
+      `;
     }
+
+    row.addEventListener("click", () => openAthleteView(a.nome));
+    list.appendChild(row);
+    rows.push(row);
   });
 
-  // entrada inicial
+  // anima entrada das rows
   if (window.gsap) {
-    gsap.from(CHAMPS_STATE.cards, {
-      opacity: 0, y: 40, rotateX: -8, duration: .7,
-      stagger: .08, ease: "power3.out",
+    gsap.from(rows, {
+      opacity: 0, y: 18, duration: .55, stagger: .06, ease: "power3.out",
     });
   }
-}
 
-function layoutChamps() {
-  const N = CHAMPS_STATE.cards.length;
-  if (!N) return;
-  const cur = CHAMPS_STATE.current;
-  const STEP_X = 180;     // px horizontal por nível
-  const STEP_Z = 150;     // px de profundidade por nível
-  const STEP_ROT = 22;    // graus por nível
-
-  CHAMPS_STATE.cards.forEach((card, i) => {
-    let diff = i - cur;
-    // distância mínima circular para suavidade quando passa do limite
-    if (diff > N / 2) diff -= N;
-    if (diff < -N / 2) diff += N;
-    const abs = Math.abs(diff);
-    const x = diff * STEP_X;
-    const z = -abs * STEP_Z;
-    const rotY = -diff * STEP_ROT;
-    const opacity = abs > 3 ? 0 : 1 - abs * 0.18;
-    const blur = abs > 0 ? Math.min(4, abs * 1.2) : 0;
-    const visible = abs <= 4;
-
-    card.classList.toggle("is-center", diff === 0);
-    card.style.pointerEvents = visible ? "auto" : "none";
-    card.style.zIndex = String(100 - abs);
-
-    if (window.gsap) {
-      gsap.to(card, {
-        x, z, rotateY: rotY, opacity,
-        filter: `blur(${blur}px)`,
-        duration: .8,
-        ease: "power3.out",
-      });
-    } else {
-      card.style.transform = `translate3d(${x}px, 0, ${z}px) rotateY(${rotY}deg)`;
-      card.style.opacity = opacity;
-    }
-  });
-
-  // dots
-  $$("#champsDots .dot").forEach((d, i) => d.classList.toggle("is-active", i === cur));
-}
-
-function goToChamp(idx) {
-  const N = CHAMPS_STATE.cards.length;
-  if (!N) return;
-  CHAMPS_STATE.current = ((idx % N) + N) % N;
-  layoutChamps();
-}
-
-function nextChamp() { goToChamp(CHAMPS_STATE.current + 1); }
-function prevChamp() { goToChamp(CHAMPS_STATE.current - 1); }
-
-function scrollChampions(dir) {
-  if (dir > 0) nextChamp(); else prevChamp();
-}
-
-function bindChampsSwipe() {
-  const stage = document.querySelector(".champs-stage");
-  if (!stage || stage.dataset.swipeBound) return;
-  stage.dataset.swipeBound = "1";
-
-  const SWIPE_DIST = 40;       // px mínimos para considerar swipe
-  const SWIPE_VELOCITY = 0.3;  // px/ms para flick rápido
-  const AXIS_THRESHOLD = 1.2;  // |dx| precisa ser > |dy| * 1.2
-  let pointerId = null;
-  let startX = 0, startY = 0, startT = 0;
-  let lockedAxis = null; // null | "x" | "y"
-
-  stage.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    pointerId = e.pointerId;
-    startX = e.clientX;
-    startY = e.clientY;
-    startT = performance.now();
-    lockedAxis = null;
-  }, { passive: true });
-
-  stage.addEventListener("pointermove", (e) => {
-    if (e.pointerId !== pointerId) return;
-    if (lockedAxis) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-    lockedAxis = Math.abs(dx) > Math.abs(dy) * AXIS_THRESHOLD ? "x" : "y";
-    if (lockedAxis === "x") {
-      try { stage.setPointerCapture(pointerId); } catch (_) {}
-    }
-  }, { passive: true });
-
-  const finish = (e) => {
-    if (e.pointerId !== pointerId) return;
-    const dx = e.clientX - startX;
-    const dt = performance.now() - startT;
-    const releasedId = pointerId;
-    pointerId = null;
-
-    if (lockedAxis === "x") {
-      try { stage.releasePointerCapture(releasedId); } catch (_) {}
-      const velocity = Math.abs(dx) / Math.max(dt, 1);
-      if (Math.abs(dx) >= SWIPE_DIST || velocity >= SWIPE_VELOCITY) {
-        if (dx < 0) nextChamp(); else prevChamp();
+  // anima barras de preenchimento (semana / progresso) com delay
+  rows.forEach((r, i) => {
+    r.querySelectorAll("[data-pct]").forEach((el) => {
+      const pct = el.dataset.pct;
+      if (window.gsap) {
+        gsap.fromTo(el, { width: "0%" }, { width: pct + "%", duration: .9, delay: .25 + i * .05, ease: "power3.out" });
+      } else {
+        el.style.width = pct + "%";
       }
-    }
-    lockedAxis = null;
-  };
-  stage.addEventListener("pointerup", finish, { passive: true });
-  stage.addEventListener("pointercancel", finish, { passive: true });
-
-  // tap em card lateral leva para ele (mantém UX desktop)
-  stage.addEventListener("click", (e) => {
-    if (lockedAxis === "x") { e.preventDefault(); e.stopPropagation(); }
+    });
+    // counters do líder
+    r.querySelectorAll(".counter").forEach((c) => {
+      const target = Number(c.dataset.target || 0);
+      animateCounter(c, target);
+    });
   });
 }
 
@@ -1004,7 +967,7 @@ function bindGlobalSwipe() {
   const SWIPE_VELOCITY = 0.55; // px/ms (flick)
   const AXIS_RATIO = 1.6;      // mais exigente que o swipe do carrossel
   const EXEMPT_SELECTOR = [
-    ".champs-stage",
+    ".rank-race-list",
     ".heatmap-card", ".heatmap-wrap", ".hm-months",
     ".mini-ranking-scroll",
     ".table-wrap",
@@ -1664,23 +1627,10 @@ function bindEvents() {
 
   $("#registerForm").addEventListener("submit", handleRegister);
 
-  // champions arrows
-  $$(".champ-arrow").forEach((btn) => {
-    btn.addEventListener("click", () => scrollChampions(Number(btn.dataset.dir) || 1));
-  });
-
-  // setas teclado para navegar carrossel quando focado
-  window.addEventListener("keydown", (e) => {
-    if (document.activeElement && document.activeElement.tagName === "INPUT") return;
-    if (e.key === "ArrowLeft") prevChamp();
-    if (e.key === "ArrowRight") nextChamp();
-  });
-
-  // mantem pill alinhada em resize + relayout do carrossel
+  // mantem pill alinhada em resize
   window.addEventListener("resize", () => {
     requestAnimationFrame(() => {
       movePill();
-      layoutChamps();
     });
   });
 }
@@ -1757,7 +1707,6 @@ function bindRadialMenu() {
 (function init() {
   bindEvents();
   bindRadialMenu();
-  bindChampsSwipe();
   bindGlobalSwipe();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
