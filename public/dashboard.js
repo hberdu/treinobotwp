@@ -750,10 +750,10 @@ function renderRankRace() {
   const today = startOfDay(new Date());
   const year = today.getFullYear();
   const currentWeek = _isoWeekNumber(today);
-  const weeks = [];
-  for (let w = 1; w <= currentWeek; w++) weeks.push(w);
+  const allWeeks = [];
+  for (let w = 1; w <= currentWeek; w++) allWeeks.push(w);
 
-  // === matrix[nome][wk] = nº de treinos do atleta naquela semana do ano corrente ===
+  // === matrix[nome][wk] = nº de treinos do atleta no ano corrente ===
   const matrix = {};
   for (const t of state.treinos) {
     const d = new Date(t.data);
@@ -775,7 +775,7 @@ function renderRankRace() {
   for (const nome in matrix) {
     const meta = metaFor(nome);
     const closed = [];
-    for (const wk of weeks) {
+    for (const wk of allWeeks) {
       const c = matrix[nome][wk] || 0;
       if (c >= meta) closed.push({ wk, count: c });
     }
@@ -790,7 +790,7 @@ function renderRankRace() {
     return;
   }
 
-  // === top N atletas por total de semanas fechadas (para manter legibilidade) ===
+  // === top N atletas por total de semanas fechadas ===
   const TOP = 15;
   const athletes = Object.keys(closedMap).map((nome) => ({
     nome,
@@ -801,34 +801,47 @@ function renderRankRace() {
     .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome))
     .slice(0, TOP);
 
-  // === ranking semanal (apenas entre os top N) ===
-  const rankMap = {};
-  let maxRank = 0;
-  for (const wk of weeks) {
-    const entries = [];
+  // === rank CUMULATIVO por semana (cada atleta tem sua própria lane que evolui) ===
+  const cumCount = {};
+  const cumRank = {}; // {nome: {wk: rank}}
+  for (const wk of allWeeks) {
     for (const a of athletes) {
-      const node = a.closed.find((n) => n.wk === wk);
-      if (node) entries.push({ nome: a.nome, count: node.count });
+      if (a.closed.some((n) => n.wk === wk)) {
+        cumCount[a.nome] = (cumCount[a.nome] || 0) + 1;
+      }
     }
-    entries.sort((a, b) => b.count - a.count || a.nome.localeCompare(b.nome));
-    entries.forEach((e, idx) => {
-      if (!rankMap[e.nome]) rankMap[e.nome] = [];
-      rankMap[e.nome].push({ wk, rank: idx, count: e.count });
-      if (idx > maxRank) maxRank = idx;
+    const ranked = athletes
+      .filter((a) => cumCount[a.nome])
+      .sort((x, y) =>
+        cumCount[y.nome] - cumCount[x.nome] ||
+        x.nome.localeCompare(y.nome)
+      );
+    ranked.forEach((a, idx) => {
+      if (!cumRank[a.nome]) cumRank[a.nome] = {};
+      cumRank[a.nome][wk] = idx;
     });
   }
-  const nRows = Math.max(1, maxRank + 1);
+
+  // === X range: foca onde há dados (com pequeno padding) ===
+  const allClosedWks = athletes.flatMap((a) => a.closed.map((n) => n.wk));
+  const minDataWk = Math.min(...allClosedWks);
+  const maxDataWk = Math.max(...allClosedWks);
+  const startWk = Math.max(1, minDataWk - 1);
+  const endWk = Math.min(currentWeek, maxDataWk + 2);
+  const weeks = [];
+  for (let w = startWk; w <= endWk; w++) weeks.push(w);
 
   // === geometria ===
   const W = Math.max(380, host.clientWidth || 1100);
   const isNarrow = W < 720;
-  const padL = isNarrow ? 110 : 168;
-  const padR = 30;
-  const padTop = 48;
-  const padBottom = 24;
-  const rowH = isNarrow ? 26 : 32;
+  const padL = isNarrow ? 110 : 170;
+  const padR = isNarrow ? 16 : 32;
+  const padTop = 56;
+  const padBottom = 28;
+  const nRows = athletes.length;
+  const rowH = isNarrow ? 30 : 38;
   const innerW = W - padL - padR;
-  const colW = Math.max(12, innerW / Math.max(1, weeks.length));
+  const colW = Math.max(14, innerW / Math.max(1, weeks.length));
   const H = padTop + nRows * rowH + padBottom;
 
   const xScale = (wk) => padL + (weeks.indexOf(wk) + 0.5) * colW;
@@ -842,18 +855,22 @@ function renderRankRace() {
     preserveAspectRatio: "xMidYMid meet",
   });
 
-  // === gridlines verticais + labels de semana ===
-  const gridEvery = isNarrow ? 8 : 4;
-  weeks.forEach((wk) => {
-    if (wk === 1 || wk % gridEvery === 0 || wk === currentWeek) {
+  // === gridlines verticais + labels ===
+  const labelEvery = isNarrow
+    ? Math.max(2, Math.ceil(weeks.length / 5))
+    : Math.max(1, Math.ceil(weeks.length / 10));
+  weeks.forEach((wk, idx) => {
+    const isFirst = idx === 0;
+    const isLast = idx === weeks.length - 1;
+    if (isFirst || isLast || wk % labelEvery === 0) {
       const x = xScale(wk);
       svg.appendChild(_rrSvgNS("line", {
         class: "rr-grid",
-        x1: x, y1: padTop - 8, x2: x, y2: padTop + nRows * rowH,
+        x1: x, y1: padTop - 12, x2: x, y2: padTop + nRows * rowH,
       }));
       const label = _rrSvgNS("text", {
         class: "rr-wk-lbl",
-        x, y: padTop - 16,
+        x, y: padTop - 18,
         "text-anchor": "middle",
       });
       label.textContent = `W${String(wk).padStart(2, "0")}`;
@@ -861,14 +878,14 @@ function renderRankRace() {
     }
   });
 
-  // eixo de base
+  // baseline
   svg.appendChild(_rrSvgNS("line", {
     class: "rr-axis",
     x1: padL, y1: padTop + nRows * rowH,
     x2: padL + innerW, y2: padTop + nRows * rowH,
   }));
 
-  // === lanes horizontais sutis ===
+  // lanes horizontais (1 por atleta)
   for (let r = 0; r < nRows; r++) {
     svg.appendChild(_rrSvgNS("line", {
       class: "rr-lane",
@@ -884,14 +901,18 @@ function renderRankRace() {
   svg.appendChild(nodesG);
 
   athletes.forEach((a) => {
-    const ns = (rankMap[a.nome] || []).slice().sort((x, y) => x.wk - y.wk);
+    const ns = a.closed
+      .filter((n) => weeks.includes(n.wk))
+      .map((n) => ({ wk: n.wk, count: n.count, rank: cumRank[a.nome][n.wk] }))
+      .sort((x, y) => x.wk - y.wk);
     if (!ns.length) return;
 
     const pts = ns.map((n) => [xScale(n.wk), yScale(n.rank)]);
     let d;
     if (pts.length === 1) {
       const [x, y] = pts[0];
-      d = `M${x - 3},${y} L${x + 3},${y}`;
+      const w = Math.max(10, colW * 0.5);
+      d = `M${x - w / 2},${y} L${x + w / 2},${y}`;
     } else {
       d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
       for (let i = 1; i < pts.length; i++) {
@@ -902,35 +923,32 @@ function renderRankRace() {
       }
     }
 
-    // halo (hit area larga e invisível para hover confortável)
     const halo = _rrSvgNS("path", {
       class: "rr-halo",
       d, fill: "none",
       stroke: "transparent",
-      "stroke-width": "14",
+      "stroke-width": "18",
       "data-athlete": a.nome,
     });
     pathsG.appendChild(halo);
 
-    // linha visível
     const path = _rrSvgNS("path", {
       class: "rr-line",
       d, fill: "none",
       stroke: a.color,
-      "stroke-width": "2.2",
+      "stroke-width": "2.4",
       "stroke-linecap": "round",
       "stroke-linejoin": "round",
       "data-athlete": a.nome,
     });
     pathsG.appendChild(path);
 
-    // nós
     ns.forEach((n) => {
       const c = _rrSvgNS("circle", {
         class: "rr-node",
         cx: xScale(n.wk),
         cy: yScale(n.rank),
-        r: "4.5",
+        r: ns.length === 1 ? "5" : "4.5",
         fill: a.color,
         stroke: "var(--bg)",
         "stroke-width": "1.8",
@@ -942,13 +960,11 @@ function renderRankRace() {
     });
   });
 
-  // === legenda lateral (nomes + total) ===
+  // === LEGENDA (cada atleta tem sua própria linha — sem sobreposição) ===
   const legendG = _rrSvgNS("g", { class: "rr-legend" });
+  const maxNameLen = isNarrow ? 11 : 18;
   athletes.forEach((a, i) => {
-    // a posição da legenda usa a posição do PRIMEIRO nó do atleta (rank inicial)
-    // para alinhar visualmente com onde a linha começa; fallback: rank index
-    const first = (rankMap[a.nome] || [])[0];
-    const y = first ? yScale(first.rank) : padTop + i * rowH + rowH / 2;
+    const y = padTop + i * rowH + rowH / 2;
 
     const hit = _rrSvgNS("rect", {
       class: "rr-leg-hit",
@@ -967,8 +983,8 @@ function renderRankRace() {
       x: 26, y, dy: ".35em",
       "data-athlete": a.nome,
     });
-    name.textContent = a.nome.length > (isNarrow ? 12 : 18)
-      ? a.nome.slice(0, isNarrow ? 12 : 18) + "…"
+    name.textContent = a.nome.length > maxNameLen
+      ? a.nome.slice(0, maxNameLen) + "…"
       : a.nome;
     const count = _rrSvgNS("text", {
       class: "rr-leg-count mono",
