@@ -902,13 +902,12 @@ function renderRankRace() {
     const ns = a.closed;
     if (!ns.length) return;
 
-    // pontos: (startWk, 0), (wk1, 1), (wk2, 2), ... (endWk, total)
-    // — total acumulado cresce 1 a cada semana fechada
+    // pontos: (startWk, 0), (wk1, 1), (wk2, 2), ... até a ÚLTIMA semana fechada
+    // — sem reta estendida até a semana atual quando não há mais progresso
     const pts = [[xScale(startWk), yScale(0)]];
     ns.forEach((n, i) => {
       pts.push([xScale(n.wk), yScale(i + 1)]);
     });
-    pts.push([xScale(endWk), yScale(ns.length)]);
 
     // curvas suaves (bezier cúbica · control points horizontais no meio do segmento)
     let d;
@@ -947,32 +946,61 @@ function renderRankRace() {
     });
     pathsG.appendChild(path);
 
-    // nós (após o degrau de cada semana fechada)
+    // === BOLINHAS ===
+    // semanas fechadas (grandes · meta atingida)
+    const closedSet = new Set(ns.map((n) => n.wk));
     ns.forEach((n, i) => {
       nodesG.appendChild(_rrSvgNS("circle", {
         class: "rr-node",
         cx: xScale(n.wk),
         cy: yScale(i + 1),
-        r: "3.6",
+        r: "4",
         fill: a.color,
         stroke: "var(--bg)",
         "stroke-width": "1.6",
         "data-athlete": a.nome,
         "data-wk": n.wk,
         "data-count": n.count,
+        "data-closed": "1",
       }));
     });
 
-    // end-label: ponto + nome + total à direita
+    // semanas com treino mas sem fechar meta (pequenas · ficam no nível atual de progresso)
+    const athleteMatrix = matrix[a.nome] || {};
+    const lastClosedWk = ns[ns.length - 1].wk;
+    let cumLevel = 0;
+    for (let wk = startWk; wk <= lastClosedWk; wk++) {
+      if (closedSet.has(wk)) {
+        cumLevel++;
+        continue;
+      }
+      const c = athleteMatrix[wk] || 0;
+      if (c <= 0) continue;
+      nodesG.appendChild(_rrSvgNS("circle", {
+        class: "rr-node rr-node-partial",
+        cx: xScale(wk),
+        cy: yScale(cumLevel),
+        r: "2.6",
+        fill: "var(--surface)",
+        stroke: a.color,
+        "stroke-width": "1.4",
+        "data-athlete": a.nome,
+        "data-wk": wk,
+        "data-count": c,
+      }));
+    }
+
+    // end-label: ponto no fim REAL da linha + nome/total à direita
     endLabels.push({
       name: a.nome,
       color: a.color,
       total: a.total,
       dataY: yScale(a.total),
+      endLineX: xScale(ns[ns.length - 1].wk),
     });
   });
 
-  // === ordenar e espaçar end-labels (evita sobreposição) ===
+  // === ordenar e espaçar end-labels (evita sobreposição vertical) ===
   endLabels.sort((a, b) => a.dataY - b.dataY);
   const minGap = isNarrow ? 14 : 18;
   endLabels.forEach((lp, i) => {
@@ -981,50 +1009,50 @@ function renderRankRace() {
       lp.y = endLabels[i - 1].y + minGap;
     }
   });
-  // clamp para dentro do chart
   endLabels.forEach((lp) => {
     if (lp.y < padTop) lp.y = padTop;
     if (lp.y > padTop + innerH) lp.y = padTop + innerH;
   });
-  // segunda passada de baixo para cima (caso o clamp causou sobreposição)
   for (let i = endLabels.length - 2; i >= 0; i--) {
     if (endLabels[i + 1].y - endLabels[i].y < minGap) {
       endLabels[i].y = endLabels[i + 1].y - minGap;
     }
   }
 
-  const endX = padL + innerW;
+  const labelColX = padL + innerW;
   const maxNameLen = isTiny ? 6 : (isNarrow ? 9 : 14);
   endLabels.forEach((lp) => {
-    // ponto final
+    // ponto no fim da linha (X = última semana fechada)
     labelsG.appendChild(_rrSvgNS("circle", {
       class: "rr-leg-dot",
-      cx: endX, cy: lp.dataY,
+      cx: lp.endLineX, cy: lp.dataY,
       r: "4", fill: lp.color,
-      stroke: "var(--surface)", "stroke-width": 1.6,
+      stroke: "var(--surface)", "stroke-width": 1.8,
+      "data-athlete": lp.name,
     }));
-    // conector entre o ponto e o texto (se desviou)
-    if (Math.abs(lp.dataY - lp.y) > 1) {
+    // conector pontilhado do fim da linha → coluna de labels
+    if (labelColX - lp.endLineX > 8) {
       labelsG.appendChild(_rrSvgNS("path", {
         class: "rr-leg-link",
-        d: `M${endX + 5},${lp.dataY.toFixed(2)} L${endX + 14},${lp.y.toFixed(2)}`,
+        d: `M${(lp.endLineX + 6).toFixed(2)},${lp.dataY.toFixed(2)} L${(labelColX - 2).toFixed(2)},${lp.y.toFixed(2)}`,
         fill: "none",
         stroke: lp.color,
-        "stroke-width": "1.2",
+        "stroke-width": "1",
+        "stroke-dasharray": "2 3",
       }));
     }
     // hit area do label
     labelsG.appendChild(_rrSvgNS("rect", {
       class: "rr-leg-hit",
-      x: endX + 14, y: lp.y - 10,
-      width: Math.max(40, padR - 18), height: 20, rx: 4,
+      x: labelColX + 2, y: lp.y - 10,
+      width: Math.max(40, padR - 6), height: 20, rx: 4,
       fill: "transparent",
       "data-athlete": lp.name,
     }));
     // total grande
     const countEl = _rrSvgNS("text", {
       class: "rr-leg-count mono",
-      x: endX + 18, y: lp.y, dy: ".35em",
+      x: labelColX + 6, y: lp.y, dy: ".35em",
       fill: lp.color,
       "data-athlete": lp.name,
     });
@@ -1034,7 +1062,7 @@ function renderRankRace() {
     if (!isTiny) {
       const nameEl = _rrSvgNS("text", {
         class: "rr-leg-name",
-        x: endX + (isNarrow ? 36 : 42), y: lp.y, dy: ".35em",
+        x: labelColX + (isNarrow ? 24 : 30), y: lp.y, dy: ".35em",
         "data-athlete": lp.name,
       });
       nameEl.textContent = lp.name.length > maxNameLen
@@ -1104,8 +1132,11 @@ function renderRankRace() {
     moveTip(e);
   };
 
-  const showNode = (nome, wk, count, e) => {
+  const showNode = (nome, wk, count, isClosed, e) => {
     const meta = metaFor(nome);
+    const status = isClosed
+      ? `<span class="rr-tip-badge rr-tip-badge--ok">semana fechada</span>`
+      : `<span class="rr-tip-badge rr-tip-badge--off">faltou ${Math.max(0, meta - count)} treino${meta - count !== 1 ? "s" : ""}</span>`;
     tip.innerHTML = `
       <div class="rr-tip-head" style="--c:${colorFor(nome)}">
         <span class="rr-tip-name">${escapeHtml(nome)}</span>
@@ -1115,6 +1146,7 @@ function renderRankRace() {
         <span class="rr-tip-num">${count}</span>
         <span class="rr-tip-sub mono">treinos · meta ${meta}</span>
       </div>
+      ${status}
     `;
     tip.hidden = false;
     moveTip(e);
@@ -1136,7 +1168,7 @@ function renderRankRace() {
     c.style.cursor = "pointer";
     c.addEventListener("mouseenter", (e) => {
       setActive(c.dataset.athlete);
-      showNode(c.dataset.athlete, c.dataset.wk, c.dataset.count, e);
+      showNode(c.dataset.athlete, c.dataset.wk, c.dataset.count, c.dataset.closed === "1", e);
     });
     c.addEventListener("mousemove", moveTip);
     c.addEventListener("mouseleave", () => { clearActive(); hideTip(); });

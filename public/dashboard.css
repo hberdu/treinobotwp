@@ -692,6 +692,11 @@ tbody tr.progress-row.is-highlighted {
   transition: r .2s cubic-bezier(.4,0,.2,1), opacity var(--t-fast), filter var(--t-fast);
   cursor: pointer;
 }
+.rr-svg .rr-node-partial {
+  opacity: .55;
+  stroke-dasharray: 2 1.6;
+}
+.rr-svg .rr-node-partial:hover { opacity: 1; }
 
 /* === END-LABELS (direita) === */
 .rr-svg .rr-leg-dot {
@@ -851,6 +856,27 @@ tbody tr.progress-row.is-highlighted {
   color: var(--text-soft);
   letter-spacing: .14em;
   text-transform: uppercase;
+}
+.rr-tip-badge {
+  display: inline-block;
+  margin-top: .5rem;
+  padding: .25rem .55rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: .58rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.rr-tip-badge--ok {
+  color: var(--c-lime);
+  background: color-mix(in oklab, var(--c-lime) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--c-lime) 40%, transparent);
+}
+.rr-tip-badge--off {
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
 }
 
 .rr-empty {
