@@ -902,19 +902,28 @@ function renderRankRace() {
     const ns = a.closed;
     if (!ns.length) return;
 
-    // step-line: (startWk,0) → (wk1,0)→(wk1,1) → (wk2,1)→(wk2,2) ... → (endWk, total)
+    // pontos: (startWk, 0), (wk1, 1), (wk2, 2), ... (endWk, total)
+    // — total acumulado cresce 1 a cada semana fechada
     const pts = [[xScale(startWk), yScale(0)]];
-    let cum = 0;
-    ns.forEach((n) => {
-      pts.push([xScale(n.wk), yScale(cum)]);
-      cum++;
-      pts.push([xScale(n.wk), yScale(cum)]);
+    ns.forEach((n, i) => {
+      pts.push([xScale(n.wk), yScale(i + 1)]);
     });
-    pts.push([xScale(endWk), yScale(cum)]);
+    pts.push([xScale(endWk), yScale(ns.length)]);
 
-    const d = pts.map((p, i) =>
-      `${i === 0 ? "M" : "L"}${p[0].toFixed(2)},${p[1].toFixed(2)}`
-    ).join(" ");
+    // curvas suaves (bezier cúbica · control points horizontais no meio do segmento)
+    let d;
+    if (pts.length === 1) {
+      const [x, y] = pts[0];
+      d = `M${x.toFixed(2)},${y.toFixed(2)}`;
+    } else {
+      d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1];
+        const [x1, y1] = pts[i];
+        const cx = (x0 + x1) / 2;
+        d += ` C${cx.toFixed(2)},${y0.toFixed(2)} ${cx.toFixed(2)},${y1.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`;
+      }
+    }
 
     // halo (hit area)
     const halo = _rrSvgNS("path", {
