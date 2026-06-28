@@ -94,7 +94,7 @@
       </div>
     </section>
 
-    <!-- ============== RANK RACE — leaderboard com sparklines ============== -->
+    <!-- ============== TANGLED TREE — semanas fechadas por atleta ============== -->
     <section class="rank-race">
       <header class="rank-race-head">
         <div>
@@ -102,12 +102,14 @@
           <h2 class="rank-race-title">Ranking Kchaw</h2>
         </div>
         <div class="rank-race-legend mono">
-          <span class="rrl-item"><i class="rrl-sw"></i> esta semana</span>
+          <span class="rrl-axis">x: semanas do ano</span>
           <span class="rrl-sep">·</span>
-          <span class="rrl-item"><svg class="rrl-spark" viewBox="0 0 28 10" width="28" height="10"><polyline points="0,8 4,6 8,7 12,4 16,5 20,2 24,3 28,1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> últimas 8 sem</span>
+          <span>y: ranking semanal</span>
+          <span class="rrl-sep">·</span>
+          <span class="rrl-hint">hover ↔ atleta</span>
         </div>
       </header>
-      <div class="rank-race-list" id="rankRace"></div>
+      <div class="rank-race-chart" id="rankRace" role="img" aria-label="Tangled tree mostrando as semanas fechadas por cada atleta ao longo do ano"></div>
     </section>
 
     <main class="grid">

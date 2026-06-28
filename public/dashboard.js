@@ -727,187 +727,412 @@ function refreshOverview() {
   bindCrossHighlight();
 }
 
-// ===================== RANK RACE (leaderboard com sparklines) =====================
-function buildSparkline(values, color, width = 96, height = 28) {
-  const n = values.length;
-  if (!n) return "";
-  const max = Math.max(1, ...values);
-  const stepX = n > 1 ? width / (n - 1) : 0;
-  const pts = values.map((v, i) => {
-    const x = (n === 1 ? width / 2 : i * stepX);
-    const y = height - (v / max) * (height - 4) - 2;
-    return [x, y];
-  });
-  const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-  const areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(1)},${height} L${pts[0][0].toFixed(1)},${height} Z`;
-  const lastX = pts[pts.length - 1][0].toFixed(1);
-  const lastY = pts[pts.length - 1][1].toFixed(1);
-  const gradId = `sg-${Math.random().toString(36).slice(2, 8)}`;
-  return `
-    <svg class="rr-spark" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${color}" stop-opacity="0.32"/>
-          <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <path d="${areaPath}" fill="url(#${gradId})"/>
-      <path d="${linePath}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${lastX}" cy="${lastY}" r="2.6" fill="${color}"/>
-    </svg>
-  `;
+// ===================== RANK RACE (tangled tree — semanas fechadas) =====================
+function _rrSvgNS(tag, attrs) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  if (attrs) for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
 }
 
-function weeklySeriesFor(nome, weeks = 8) {
-  const today = startOfDay(new Date());
-  const daysSinceMonday = (today.getDay() + 6) % 7;
-  const thisMonday = new Date(today);
-  thisMonday.setDate(thisMonday.getDate() - daysSinceMonday);
-
-  const buckets = new Array(weeks).fill(0);
-  const start = new Date(thisMonday);
-  start.setDate(start.getDate() - (weeks - 1) * 7);
-
-  for (const t of state.treinos) {
-    if (t.nome !== nome) continue;
-    const d = new Date(t.data);
-    if (d < start) continue;
-    const diffDays = Math.floor((d - start) / 86400000);
-    const idx = Math.floor(diffDays / 7);
-    if (idx >= 0 && idx < weeks) buckets[idx]++;
-  }
-  return buckets;
+function _isoWeekNumber(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
 }
 
 function renderRankRace() {
-  const list = $("#rankRace");
-  if (!list) return;
-  list.innerHTML = "";
+  const host = $("#rankRace");
+  if (!host) return;
+  host.innerHTML = "";
 
-  const ordenados = [...state.atletas].sort((a, b) => {
-    if (b.progressoSemanal !== a.progressoSemanal) return b.progressoSemanal - a.progressoSemanal;
-    return b.treinos - a.treinos;
-  });
+  const today = startOfDay(new Date());
+  const year = today.getFullYear();
+  const currentWeek = _isoWeekNumber(today);
+  const weeks = [];
+  for (let w = 1; w <= currentWeek; w++) weeks.push(w);
 
-  if (ordenados.length === 0) {
+  // === matrix[nome][wk] = nº de treinos do atleta naquela semana do ano corrente ===
+  const matrix = {};
+  for (const t of state.treinos) {
+    const d = new Date(t.data);
+    if (d.getFullYear() !== year) continue;
+    const wk = _isoWeekNumber(d);
+    if (wk < 1 || wk > currentWeek) continue;
+    if (!matrix[t.nome]) matrix[t.nome] = {};
+    matrix[t.nome][wk] = (matrix[t.nome][wk] || 0) + 1;
+  }
+
+  const defaultMeta = state.meta || 5;
+  const metaFor = (nome) => {
+    const a = state.atletas.find((x) => x.nome === nome);
+    return (a && a.meta) || defaultMeta;
+  };
+
+  // === semanas fechadas (count >= meta) por atleta ===
+  const closedMap = {};
+  for (const nome in matrix) {
+    const meta = metaFor(nome);
+    const closed = [];
+    for (const wk of weeks) {
+      const c = matrix[nome][wk] || 0;
+      if (c >= meta) closed.push({ wk, count: c });
+    }
+    if (closed.length) closedMap[nome] = closed;
+  }
+
+  if (Object.keys(closedMap).length === 0) {
     const empty = document.createElement("div");
     empty.className = "rr-empty mono";
-    empty.textContent = "// sem dados ainda";
-    list.appendChild(empty);
+    empty.textContent = "// nenhuma semana fechada ainda";
+    host.appendChild(empty);
     return;
   }
 
-  // contagem da semana atual (segunda → hoje)
-  const today = startOfDay(new Date());
-  const daysSinceMonday = (today.getDay() + 6) % 7;
-  const monday = new Date(today);
-  monday.setDate(monday.getDate() - daysSinceMonday);
-  const treinosSemana = {};
-  for (const t of state.treinos) {
-    const d = new Date(t.data);
-    if (d >= monday) treinosSemana[t.nome] = (treinosSemana[t.nome] || 0) + 1;
+  // === top N atletas por total de semanas fechadas (para manter legibilidade) ===
+  const TOP = 15;
+  const athletes = Object.keys(closedMap).map((nome) => ({
+    nome,
+    color: colorFor(nome),
+    closed: closedMap[nome],
+    total: closedMap[nome].length,
+  }))
+    .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome))
+    .slice(0, TOP);
+
+  // === ranking semanal (apenas entre os top N) ===
+  const rankMap = {};
+  let maxRank = 0;
+  for (const wk of weeks) {
+    const entries = [];
+    for (const a of athletes) {
+      const node = a.closed.find((n) => n.wk === wk);
+      if (node) entries.push({ nome: a.nome, count: node.count });
+    }
+    entries.sort((a, b) => b.count - a.count || a.nome.localeCompare(b.nome));
+    entries.forEach((e, idx) => {
+      if (!rankMap[e.nome]) rankMap[e.nome] = [];
+      rankMap[e.nome].push({ wk, rank: idx, count: e.count });
+      if (idx > maxRank) maxRank = idx;
+    });
+  }
+  const nRows = Math.max(1, maxRank + 1);
+
+  // === geometria ===
+  const W = Math.max(380, host.clientWidth || 1100);
+  const isNarrow = W < 720;
+  const padL = isNarrow ? 110 : 168;
+  const padR = 30;
+  const padTop = 48;
+  const padBottom = 24;
+  const rowH = isNarrow ? 26 : 32;
+  const innerW = W - padL - padR;
+  const colW = Math.max(12, innerW / Math.max(1, weeks.length));
+  const H = padTop + nRows * rowH + padBottom;
+
+  const xScale = (wk) => padL + (weeks.indexOf(wk) + 0.5) * colW;
+  const yScale = (rank) => padTop + rank * rowH + rowH / 2;
+
+  const svg = _rrSvgNS("svg", {
+    class: "rr-svg",
+    viewBox: `0 0 ${W} ${H}`,
+    width: "100%",
+    height: String(H),
+    preserveAspectRatio: "xMidYMid meet",
+  });
+
+  // === gridlines verticais + labels de semana ===
+  const gridEvery = isNarrow ? 8 : 4;
+  weeks.forEach((wk) => {
+    if (wk === 1 || wk % gridEvery === 0 || wk === currentWeek) {
+      const x = xScale(wk);
+      svg.appendChild(_rrSvgNS("line", {
+        class: "rr-grid",
+        x1: x, y1: padTop - 8, x2: x, y2: padTop + nRows * rowH,
+      }));
+      const label = _rrSvgNS("text", {
+        class: "rr-wk-lbl",
+        x, y: padTop - 16,
+        "text-anchor": "middle",
+      });
+      label.textContent = `W${String(wk).padStart(2, "0")}`;
+      svg.appendChild(label);
+    }
+  });
+
+  // eixo de base
+  svg.appendChild(_rrSvgNS("line", {
+    class: "rr-axis",
+    x1: padL, y1: padTop + nRows * rowH,
+    x2: padL + innerW, y2: padTop + nRows * rowH,
+  }));
+
+  // === lanes horizontais sutis ===
+  for (let r = 0; r < nRows; r++) {
+    svg.appendChild(_rrSvgNS("line", {
+      class: "rr-lane",
+      x1: padL, y1: yScale(r),
+      x2: padL + innerW, y2: yScale(r),
+    }));
   }
 
-  const top = ordenados.slice(0, 8);
-  const maxSemana = Math.max(1, ...top.map(a => treinosSemana[a.nome] || 0));
-  const maxProgresso = Math.max(1, ...top.map(a => a.progressoSemanal || 0));
+  // === paths e nodes ===
+  const pathsG = _rrSvgNS("g", { class: "rr-paths" });
+  const nodesG = _rrSvgNS("g", { class: "rr-nodes" });
+  svg.appendChild(pathsG);
+  svg.appendChild(nodesG);
 
-  const rows = [];
-  top.forEach((a, i) => {
-    const col = colorFor(a.nome);
-    const semana = treinosSemana[a.nome] || 0;
-    const pctSemana = Math.round((semana / maxSemana) * 100);
-    const pctProgresso = Math.round((a.progressoSemanal / maxProgresso) * 100);
-    const medalCls = i === 0 ? "is-gold" : i === 1 ? "is-silver" : i === 2 ? "is-bronze" : "";
+  athletes.forEach((a) => {
+    const ns = (rankMap[a.nome] || []).slice().sort((x, y) => x.wk - y.wk);
+    if (!ns.length) return;
 
-    const row = document.createElement("article");
-    row.className = `rr-row${i === 0 ? " is-leader" : ""} ${medalCls}`;
-    row.style.setProperty("--rr-color", col);
-    row.dataset.athlete = a.nome;
-
-    if (i === 0) {
-      // LEADER — linha maior, com tipografia destacada e barra de progresso
-      row.innerHTML = `
-        <div class="rr-leader-badge">
-          <span class="rr-leader-tag mono">líder · 01</span>
-          <svg class="rr-crown" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-            <path d="M3 7l4.5 3.5L12 4l4.5 6.5L21 7l-1.6 11H4.6L3 7zm2.5 13h13v1.5h-13V20z"/>
-          </svg>
-        </div>
-        <div class="rr-leader-name">${escapeHtml(a.nome)}</div>
-        <div class="rr-leader-bar">
-          <span class="rr-leader-fill" data-pct="${pctProgresso}"></span>
-          <span class="rr-leader-ticks">
-            ${Array.from({ length: 10 }, () => `<i></i>`).join("")}
-          </span>
-        </div>
-        <div class="rr-leader-stats">
-          <div class="rr-stat">
-            <span class="rr-stat-val counter" data-target="${semana}">0</span>
-            <span class="rr-stat-lbl mono">esta sem.</span>
-          </div>
-          <span class="rr-stat-sep"></span>
-          <div class="rr-stat">
-            <span class="rr-stat-val counter" data-target="${a.progressoSemanal}">0</span>
-            <span class="rr-stat-lbl mono">sem. ✓</span>
-          </div>
-          <span class="rr-stat-sep"></span>
-          <div class="rr-stat">
-            <span class="rr-stat-val counter" data-target="${a.treinos}">0</span>
-            <span class="rr-stat-lbl mono">total</span>
-          </div>
-        </div>
-      `;
+    const pts = ns.map((n) => [xScale(n.wk), yScale(n.rank)]);
+    let d;
+    if (pts.length === 1) {
+      const [x, y] = pts[0];
+      d = `M${x - 3},${y} L${x + 3},${y}`;
     } else {
-      // DEMAIS — linha enxuta com sparkline + número grande à direita
-      const series = weeklySeriesFor(a.nome, 8);
-      row.innerHTML = `
-        <span class="rr-pos">${String(i + 1).padStart(2, "0")}</span>
-        <span class="rr-dot"></span>
-        <span class="rr-name">${escapeHtml(a.nome)}</span>
-        <div class="rr-spark-wrap">${buildSparkline(series, col, 110, 30)}</div>
-        <div class="rr-bar">
-          <span class="rr-bar-fill" data-pct="${pctSemana}"></span>
-        </div>
-        <div class="rr-side">
-          <span class="rr-side-num">${semana}</span>
-          <span class="rr-side-lbl mono">esta sem.</span>
-        </div>
-        <div class="rr-aside mono">
-          <span><b>${a.progressoSemanal}</b>sem ✓</span>
-          <span><b>${a.treinos}</b>total</span>
-        </div>
-      `;
+      d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1];
+        const [x1, y1] = pts[i];
+        const cx = (x0 + x1) / 2;
+        d += ` C${cx.toFixed(2)},${y0.toFixed(2)} ${cx.toFixed(2)},${y1.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`;
+      }
     }
 
-    row.addEventListener("click", () => openAthleteView(a.nome));
-    list.appendChild(row);
-    rows.push(row);
+    // halo (hit area larga e invisível para hover confortável)
+    const halo = _rrSvgNS("path", {
+      class: "rr-halo",
+      d, fill: "none",
+      stroke: "transparent",
+      "stroke-width": "14",
+      "data-athlete": a.nome,
+    });
+    pathsG.appendChild(halo);
+
+    // linha visível
+    const path = _rrSvgNS("path", {
+      class: "rr-line",
+      d, fill: "none",
+      stroke: a.color,
+      "stroke-width": "2.2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      "data-athlete": a.nome,
+    });
+    pathsG.appendChild(path);
+
+    // nós
+    ns.forEach((n) => {
+      const c = _rrSvgNS("circle", {
+        class: "rr-node",
+        cx: xScale(n.wk),
+        cy: yScale(n.rank),
+        r: "4.5",
+        fill: a.color,
+        stroke: "var(--bg)",
+        "stroke-width": "1.8",
+        "data-athlete": a.nome,
+        "data-wk": n.wk,
+        "data-count": n.count,
+      });
+      nodesG.appendChild(c);
+    });
   });
 
-  // anima entrada das rows
-  if (window.gsap) {
-    gsap.from(rows, {
-      opacity: 0, y: 18, duration: .55, stagger: .06, ease: "power3.out",
+  // === legenda lateral (nomes + total) ===
+  const legendG = _rrSvgNS("g", { class: "rr-legend" });
+  athletes.forEach((a, i) => {
+    // a posição da legenda usa a posição do PRIMEIRO nó do atleta (rank inicial)
+    // para alinhar visualmente com onde a linha começa; fallback: rank index
+    const first = (rankMap[a.nome] || [])[0];
+    const y = first ? yScale(first.rank) : padTop + i * rowH + rowH / 2;
+
+    const hit = _rrSvgNS("rect", {
+      class: "rr-leg-hit",
+      x: 0, y: y - rowH / 2 + 2, width: padL - 4, height: rowH - 4, rx: 6,
+      fill: "transparent",
+      "data-athlete": a.nome,
     });
+    const swatch = _rrSvgNS("rect", {
+      class: "rr-leg-sw",
+      x: 10, y: y - 4, width: 8, height: 8, rx: 2,
+      fill: a.color,
+      "data-athlete": a.nome,
+    });
+    const name = _rrSvgNS("text", {
+      class: "rr-leg-name",
+      x: 26, y, dy: ".35em",
+      "data-athlete": a.nome,
+    });
+    name.textContent = a.nome.length > (isNarrow ? 12 : 18)
+      ? a.nome.slice(0, isNarrow ? 12 : 18) + "…"
+      : a.nome;
+    const count = _rrSvgNS("text", {
+      class: "rr-leg-count mono",
+      x: padL - 14, y, dy: ".35em",
+      "text-anchor": "end",
+      "data-athlete": a.nome,
+    });
+    count.textContent = a.total;
+
+    legendG.appendChild(hit);
+    legendG.appendChild(swatch);
+    legendG.appendChild(name);
+    legendG.appendChild(count);
+  });
+  svg.appendChild(legendG);
+
+  host.appendChild(svg);
+
+  // === TOOLTIP ===
+  let tip = host.querySelector(".rr-tip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.className = "rr-tip";
+    tip.hidden = true;
+    host.appendChild(tip);
   }
 
-  // anima barras de preenchimento (semana / progresso) com delay
-  rows.forEach((r, i) => {
-    r.querySelectorAll("[data-pct]").forEach((el) => {
-      const pct = el.dataset.pct;
-      if (window.gsap) {
-        gsap.fromTo(el, { width: "0%" }, { width: pct + "%", duration: .9, delay: .25 + i * .05, ease: "power3.out" });
-      } else {
-        el.style.width = pct + "%";
-      }
+  // === INTERAÇÕES ===
+  const setActive = (nome) => {
+    svg.classList.add("is-focusing");
+    svg.querySelectorAll("[data-athlete]").forEach((el) => {
+      el.classList.toggle("is-active", el.dataset.athlete === nome);
     });
-    // counters do líder
-    r.querySelectorAll(".counter").forEach((c) => {
-      const target = Number(c.dataset.target || 0);
-      animateCounter(c, target);
-    });
+  };
+  const clearActive = () => {
+    svg.classList.remove("is-focusing");
+    svg.querySelectorAll("[data-athlete].is-active").forEach((el) => el.classList.remove("is-active"));
+  };
+
+  const moveTip = (e) => {
+    const r = host.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const tw = tip.offsetWidth || 220;
+    const th = tip.offsetHeight || 110;
+    let nx = x + 16;
+    let ny = y + 16;
+    if (nx + tw > host.clientWidth - 8) nx = Math.max(8, x - tw - 16);
+    if (ny + th > host.clientHeight - 8) ny = Math.max(8, y - th - 16);
+    tip.style.transform = `translate(${nx}px, ${ny}px)`;
+  };
+
+  const showAthlete = (nome, e) => {
+    const a = state.atletas.find((x) => x.nome === nome);
+    if (!a) return;
+    const todos = state.treinos.filter((t) => t.nome === nome);
+    const streak = computeStreak(todos);
+    const ultimo = todos.length ? todos[todos.length - 1].data : null;
+    const semanaAtual = matrix[nome] ? (matrix[nome][currentWeek] || 0) : 0;
+    tip.innerHTML = `
+      <div class="rr-tip-head" style="--c:${colorFor(nome)}">
+        <span class="rr-tip-name">${escapeHtml(nome)}</span>
+        <span class="rr-tip-tag mono">${a.progressoSemanal} sem ✓</span>
+      </div>
+      <dl class="rr-tip-grid">
+        <dt>treinos</dt><dd>${a.treinos}</dd>
+        <dt>meta</dt><dd>${a.meta}/sem</dd>
+        <dt>esta sem.</dt><dd>${semanaAtual}</dd>
+        <dt>streak</dt><dd>${streak} dias</dd>
+        <dt>último</dt><dd>${escapeHtml(fmtRelative(ultimo))}</dd>
+      </dl>
+    `;
+    tip.hidden = false;
+    moveTip(e);
+  };
+
+  const showNode = (nome, wk, count, e) => {
+    const meta = metaFor(nome);
+    tip.innerHTML = `
+      <div class="rr-tip-head" style="--c:${colorFor(nome)}">
+        <span class="rr-tip-name">${escapeHtml(nome)}</span>
+        <span class="rr-tip-tag mono">W${String(wk).padStart(2, "0")}</span>
+      </div>
+      <div class="rr-tip-week">
+        <span class="rr-tip-num">${count}</span>
+        <span class="rr-tip-sub mono">treinos · meta ${meta}</span>
+      </div>
+    `;
+    tip.hidden = false;
+    moveTip(e);
+  };
+
+  const hideTip = () => { tip.hidden = true; };
+
+  // linhas (halo) → tooltip do atleta
+  pathsG.querySelectorAll(".rr-halo").forEach((h) => {
+    h.style.cursor = "pointer";
+    h.addEventListener("mouseenter", (e) => { setActive(h.dataset.athlete); showAthlete(h.dataset.athlete, e); });
+    h.addEventListener("mousemove", moveTip);
+    h.addEventListener("mouseleave", () => { clearActive(); hideTip(); });
+    h.addEventListener("click", () => openAthleteView(h.dataset.athlete));
   });
+
+  // nós → tooltip da semana
+  nodesG.querySelectorAll(".rr-node").forEach((c) => {
+    c.style.cursor = "pointer";
+    c.addEventListener("mouseenter", (e) => {
+      setActive(c.dataset.athlete);
+      showNode(c.dataset.athlete, c.dataset.wk, c.dataset.count, e);
+    });
+    c.addEventListener("mousemove", moveTip);
+    c.addEventListener("mouseleave", () => { clearActive(); hideTip(); });
+    c.addEventListener("click", () => openAthleteView(c.dataset.athlete));
+  });
+
+  // legenda → tooltip do atleta
+  legendG.querySelectorAll("[data-athlete]").forEach((el) => {
+    el.style.cursor = "pointer";
+    el.addEventListener("mouseenter", (e) => { setActive(el.dataset.athlete); showAthlete(el.dataset.athlete, e); });
+    el.addEventListener("mousemove", moveTip);
+    el.addEventListener("mouseleave", () => { clearActive(); hideTip(); });
+    el.addEventListener("click", () => openAthleteView(el.dataset.athlete));
+  });
+
+  // === ENTRADA ANIMADA ===
+  if (window.gsap) {
+    const lines = Array.from(pathsG.querySelectorAll(".rr-line"));
+    lines.forEach((p, i) => {
+      const len = (p.getTotalLength && p.getTotalLength()) || 600;
+      p.style.strokeDasharray = len;
+      p.style.strokeDashoffset = len;
+      gsap.to(p, {
+        strokeDashoffset: 0,
+        duration: 1.3, delay: 0.15 + i * 0.04, ease: "power2.out",
+      });
+    });
+    gsap.from(nodesG.querySelectorAll(".rr-node"), {
+      opacity: 0, duration: 0.4, delay: 0.55, stagger: 0.005, ease: "power2.out",
+    });
+    gsap.from(legendG.querySelectorAll(".rr-leg-sw, .rr-leg-name, .rr-leg-count"), {
+      opacity: 0, x: -12, duration: 0.5, stagger: 0.025, ease: "power2.out",
+    });
+    gsap.from(svg.querySelectorAll(".rr-grid, .rr-wk-lbl, .rr-axis, .rr-lane"), {
+      opacity: 0, duration: 0.5, ease: "power2.out", delay: 0.1, stagger: 0.005,
+    });
+  }
+}
+
+// re-render do chart quando o container muda de largura
+function bindRankRaceResize() {
+  const host = document.getElementById("rankRace");
+  if (!host || host.dataset.roBound) return;
+  host.dataset.roBound = "1";
+  if (typeof ResizeObserver === "undefined") return;
+  let lastW = 0;
+  let raf = 0;
+  const ro = new ResizeObserver((entries) => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (Math.abs(w - lastW) < 24) return;
+    lastW = w;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => { renderRankRace(); });
+  });
+  ro.observe(host);
 }
 
 // ===================== ATHLETE VIEW =====================
@@ -1708,6 +1933,7 @@ function bindRadialMenu() {
   bindEvents();
   bindRadialMenu();
   bindGlobalSwipe();
+  bindRankRaceResize();
   const { from, to } = applyPreset(state.filters.preset);
   state.filters.from = from;
   state.filters.to = to;
