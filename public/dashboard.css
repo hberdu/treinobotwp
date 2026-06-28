@@ -609,57 +609,36 @@ tbody tr.progress-row.is-highlighted {
 }
 
 /* ============================================================
-   RANK RACE  — tangled tree (SVG nativo) · semanas fechadas
+   RANK RACE  — step-line acumulado · semanas fechadas
    ============================================================ */
 .rank-race {
-  padding: 2rem 2rem 0;
+  padding: 1.5rem 2rem 0;
   max-width: 1200px;
   margin: 0 auto;
 }
-.rank-race-head {
+.rank-race-card { padding: 1.5rem 1.75rem 1.25rem; }
+.rank-race-card .card-head { align-items: flex-start; }
+.rank-race-titles {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: .15rem;
+  min-width: 0;
 }
+.rank-race-titles .hero-eyebrow { margin-bottom: 0; }
 .rank-race-title {
   font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
-  margin: .25rem 0 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  margin: 0;
   font-weight: 700;
-  letter-spacing: -.03em;
+  letter-spacing: -.02em;
+  color: var(--text);
 }
-.rank-race-legend {
-  display: inline-flex;
-  align-items: center;
-  gap: .55rem;
-  font-size: .68rem;
-  color: var(--text-soft);
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  padding: .4rem .85rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  flex-wrap: wrap;
-}
-.rrl-axis { color: var(--text-dim); }
-.rrl-sep  { color: var(--text-soft); opacity: .5; }
-.rrl-hint { color: var(--accent); }
 
 .rank-race-chart {
   position: relative;
   width: 100%;
-  background:
-    radial-gradient(ellipse 70% 60% at 20% 0%, color-mix(in oklab, var(--c-cyan) 6%, transparent), transparent 60%),
-    radial-gradient(ellipse 50% 50% at 100% 100%, color-mix(in oklab, var(--c-magenta) 5%, transparent), transparent 60%),
-    var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: .5rem .25rem;
   overflow: hidden;
+  margin-top: .25rem;
 }
 
 /* SVG raiz */
@@ -676,75 +655,80 @@ tbody tr.progress-row.is-highlighted {
   stroke: var(--border);
   stroke-width: 1;
   stroke-dasharray: 2 4;
-  opacity: .55;
+  opacity: .5;
 }
 .rr-svg .rr-axis {
   stroke: var(--border-strong);
   stroke-width: 1;
 }
-.rr-svg .rr-lane {
-  stroke: var(--border);
+.rr-svg .rr-tick {
+  stroke: var(--border-strong);
   stroke-width: 1;
-  stroke-dasharray: 1 6;
-  opacity: .25;
 }
-.rr-svg .rr-wk-lbl {
+.rr-svg .rr-wk-lbl,
+.rr-svg .rr-y-lbl {
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
   fill: var(--text-soft);
-  letter-spacing: .12em;
-  text-transform: uppercase;
+  letter-spacing: .1em;
   font-variant-numeric: tabular-nums;
 }
+.rr-svg .rr-wk-lbl { text-transform: uppercase; }
 
 /* === LINHAS DOS ATLETAS === */
 .rr-svg .rr-line {
-  opacity: .85;
+  opacity: .88;
   transition: opacity var(--t-fast), stroke-width var(--t-fast), filter var(--t-fast);
   pointer-events: none;
 }
 .rr-svg .rr-halo {
   pointer-events: stroke;
+  cursor: pointer;
 }
 
 /* === NÓS === */
 .rr-svg .rr-node {
   transition: r .2s cubic-bezier(.4,0,.2,1), opacity var(--t-fast), filter var(--t-fast);
+  cursor: pointer;
 }
 
-/* === LEGENDA === */
+/* === END-LABELS (direita) === */
+.rr-svg .rr-leg-dot {
+  transition: r var(--t-fast), filter var(--t-fast);
+}
+.rr-svg .rr-leg-link {
+  opacity: .55;
+  transition: opacity var(--t-fast), stroke-width var(--t-fast);
+}
 .rr-svg .rr-leg-name {
   font-family: "Inter", sans-serif;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   fill: var(--text-dim);
   transition: fill var(--t-fast), font-weight var(--t-fast);
 }
 .rr-svg .rr-leg-count {
-  font-size: 11px;
-  fill: var(--text-soft);
+  font-size: 13px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: .04em;
-}
-.rr-svg .rr-leg-sw {
-  transition: transform var(--t-fast), filter var(--t-fast);
-  transform-origin: center;
-  transform-box: fill-box;
+  letter-spacing: -.01em;
+  font-family: "Space Grotesk", sans-serif;
 }
 .rr-svg .rr-leg-hit {
+  cursor: pointer;
   transition: fill var(--t-fast);
 }
-
-/* hover (sem focusing) — feedback rápido */
-.rr-svg .rr-leg-hit:hover,
-.rr-svg [data-athlete]:hover ~ .rr-leg-hit { fill: color-mix(in oklab, var(--accent) 6%, transparent); }
+.rr-svg .rr-leg-hit:hover {
+  fill: color-mix(in oklab, var(--accent) 5%, transparent);
+}
 
 /* === FOCUSING (um atleta hover) — dim todos, destaca o ativo === */
-.rr-svg.is-focusing .rr-line { opacity: .12; }
-.rr-svg.is-focusing .rr-node { opacity: .25; }
-.rr-svg.is-focusing .rr-leg-name { fill: var(--text-soft); }
-.rr-svg.is-focusing .rr-leg-count { opacity: .4; }
-.rr-svg.is-focusing .rr-leg-sw { opacity: .35; }
+.rr-svg.is-focusing .rr-line { opacity: .1; }
+.rr-svg.is-focusing .rr-node { opacity: .2; }
+.rr-svg.is-focusing .rr-leg-name { fill: var(--text-soft); opacity: .4; }
+.rr-svg.is-focusing .rr-leg-count { opacity: .35; }
+.rr-svg.is-focusing .rr-leg-dot { opacity: .35; }
+.rr-svg.is-focusing .rr-leg-link { opacity: .15; }
 
 .rr-svg.is-focusing .rr-line.is-active {
   opacity: 1;
@@ -753,24 +737,27 @@ tbody tr.progress-row.is-highlighted {
 }
 .rr-svg.is-focusing .rr-node.is-active {
   opacity: 1;
-  r: 6;
+  r: 5.5;
   filter: drop-shadow(0 0 4px currentColor);
 }
 .rr-svg.is-focusing .rr-leg-name.is-active {
   fill: var(--text);
   font-weight: 700;
+  opacity: 1;
 }
 .rr-svg.is-focusing .rr-leg-count.is-active {
   opacity: 1;
-  fill: var(--text);
 }
-.rr-svg.is-focusing .rr-leg-sw.is-active {
+.rr-svg.is-focusing .rr-leg-dot.is-active {
   opacity: 1;
-  transform: scale(1.35);
+  r: 5.5;
   filter: drop-shadow(0 0 4px currentColor);
 }
+.rr-svg.is-focusing .rr-leg-link.is-active {
+  opacity: 1;
+}
 .rr-svg.is-focusing .rr-leg-hit.is-active {
-  fill: color-mix(in oklab, var(--accent) 10%, transparent);
+  fill: color-mix(in oklab, var(--accent) 8%, transparent);
 }
 
 /* === TOOLTIP === */
@@ -778,19 +765,27 @@ tbody tr.progress-row.is-highlighted {
   position: absolute;
   top: 0; left: 0;
   min-width: 200px;
-  max-width: 280px;
-  background: rgba(6,6,8,.92);
+  max-width: 260px;
+  background: rgba(6,6,8,.94);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  padding: .75rem .85rem;
+  padding: .7rem .8rem .75rem .9rem;
   box-shadow: 0 18px 40px -12px rgba(0,0,0,.8);
   pointer-events: none;
   z-index: 50;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  font-size: .82rem;
+  font-size: .8rem;
+  overflow: hidden;
 }
 .rr-tip[hidden] { display: none; }
+.rr-tip::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--c, var(--accent));
+}
 .rr-tip-head {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: .75rem;
@@ -798,23 +793,15 @@ tbody tr.progress-row.is-highlighted {
   border-bottom: 1px solid var(--border);
   margin-bottom: .55rem;
 }
-.rr-tip-head::before {
-  content: "";
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: var(--c, var(--accent));
-  border-radius: 10px 0 0 10px;
-}
 .rr-tip-name {
   font-family: "Space Grotesk", sans-serif;
-  font-size: 1rem;
+  font-size: .95rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -.01em;
 }
 .rr-tip-tag {
-  font-size: .62rem;
+  font-size: .6rem;
   color: var(--c, var(--accent));
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -1715,29 +1702,25 @@ footer { padding: 2rem 2rem 3rem; text-align: center; }
   .card-tag { font-size: .58rem; align-self: flex-start; }
   .chart-box { height: 220px; }
 
-  /* rank-race (tangled tree) mobile */
-  .rank-race { padding-top: 1.5rem; }
-  .rank-race-head { margin-bottom: 1rem; gap: .5rem; }
-  .rank-race-title { font-size: 1.5rem; }
-  .rank-race-legend { font-size: .56rem; gap: .4rem; padding: .35rem .6rem; }
-  .rank-race-chart {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-  .rank-race-chart::-webkit-scrollbar { height: 4px; }
-  .rank-race-chart::-webkit-scrollbar-thumb {
-    background: color-mix(in oklab, var(--accent) 35%, transparent);
-    border-radius: 999px;
-  }
+  /* rank-race mobile */
+  .rank-race { padding: 1rem 1rem 0; }
+  .rank-race-card { padding: 1.1rem 1.15rem 1rem; }
+  .rank-race-card .card-head { gap: .35rem; }
+  .rank-race-title { font-size: 1.1rem; }
+  .rank-race-titles .hero-eyebrow { font-size: .58rem; letter-spacing: .14em; }
+  .rank-race-chart { margin-top: .35rem; }
+  .rr-svg .rr-leg-name { font-size: 11px; }
+  .rr-svg .rr-leg-count { font-size: 12px; }
+  .rr-svg .rr-wk-lbl,
+  .rr-svg .rr-y-lbl { font-size: 9px; }
   .rr-tip {
     min-width: 160px;
     max-width: 220px;
-    padding: .6rem .7rem;
+    padding: .55rem .65rem;
     font-size: .76rem;
   }
-  .rr-tip-name { font-size: .9rem; }
-  .rr-tip-num { font-size: 1.6rem; }
+  .rr-tip-name { font-size: .88rem; }
+  .rr-tip-num { font-size: 1.55rem; }
 
   /* athlete hero */
   .athlete-hero { padding: 1.25rem; gap: 1rem; }

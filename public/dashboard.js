@@ -753,7 +753,7 @@ function renderRankRace() {
   const allWeeks = [];
   for (let w = 1; w <= currentWeek; w++) allWeeks.push(w);
 
-  // === matrix[nome][wk] = nº de treinos do atleta no ano corrente ===
+  // matrix[nome][wk] = nº de treinos
   const matrix = {};
   for (const t of state.treinos) {
     const d = new Date(t.data);
@@ -770,7 +770,7 @@ function renderRankRace() {
     return (a && a.meta) || defaultMeta;
   };
 
-  // === semanas fechadas (count >= meta) por atleta ===
+  // semanas fechadas (count >= meta) por atleta
   const closedMap = {};
   for (const nome in matrix) {
     const meta = metaFor(nome);
@@ -790,62 +790,42 @@ function renderRankRace() {
     return;
   }
 
-  // === top N atletas por total de semanas fechadas ===
-  const TOP = 15;
+  // top N atletas
+  const TOP = 12;
   const athletes = Object.keys(closedMap).map((nome) => ({
     nome,
     color: colorFor(nome),
-    closed: closedMap[nome],
+    closed: closedMap[nome].slice().sort((a, b) => a.wk - b.wk),
     total: closedMap[nome].length,
   }))
     .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome))
     .slice(0, TOP);
 
-  // === rank CUMULATIVO por semana (cada atleta tem sua própria lane que evolui) ===
-  const cumCount = {};
-  const cumRank = {}; // {nome: {wk: rank}}
-  for (const wk of allWeeks) {
-    for (const a of athletes) {
-      if (a.closed.some((n) => n.wk === wk)) {
-        cumCount[a.nome] = (cumCount[a.nome] || 0) + 1;
-      }
-    }
-    const ranked = athletes
-      .filter((a) => cumCount[a.nome])
-      .sort((x, y) =>
-        cumCount[y.nome] - cumCount[x.nome] ||
-        x.nome.localeCompare(y.nome)
-      );
-    ranked.forEach((a, idx) => {
-      if (!cumRank[a.nome]) cumRank[a.nome] = {};
-      cumRank[a.nome][wk] = idx;
-    });
-  }
-
-  // === X range: foca onde há dados (com pequeno padding) ===
+  // === X range: foca em onde há dados ===
   const allClosedWks = athletes.flatMap((a) => a.closed.map((n) => n.wk));
   const minDataWk = Math.min(...allClosedWks);
-  const maxDataWk = Math.max(...allClosedWks);
   const startWk = Math.max(1, minDataWk - 1);
-  const endWk = Math.min(currentWeek, maxDataWk + 2);
+  const endWk = currentWeek;
   const weeks = [];
   for (let w = startWk; w <= endWk; w++) weeks.push(w);
 
-  // === geometria ===
-  const W = Math.max(380, host.clientWidth || 1100);
-  const isNarrow = W < 720;
-  const padL = isNarrow ? 110 : 170;
-  const padR = isNarrow ? 16 : 32;
-  const padTop = 56;
-  const padBottom = 28;
-  const nRows = athletes.length;
-  const rowH = isNarrow ? 30 : 38;
-  const innerW = W - padL - padR;
-  const colW = Math.max(14, innerW / Math.max(1, weeks.length));
-  const H = padTop + nRows * rowH + padBottom;
+  const maxY = Math.max(1, ...athletes.map((a) => a.total));
 
-  const xScale = (wk) => padL + (weeks.indexOf(wk) + 0.5) * colW;
-  const yScale = (rank) => padTop + rank * rowH + rowH / 2;
+  // === geometria ===
+  const W = Math.max(360, host.clientWidth || 800);
+  const isNarrow = W < 640;
+  const isTiny = W < 440;
+  const padL = isTiny ? 30 : (isNarrow ? 34 : 44);
+  const padR = isTiny ? 64 : (isNarrow ? 96 : 150);
+  const padTop = isNarrow ? 14 : 18;
+  const padBottom = isNarrow ? 32 : 38;
+  const innerW = Math.max(80, W - padL - padR);
+  const innerH = isTiny ? 240 : (isNarrow ? 280 : 340);
+  const H = padTop + innerH + padBottom;
+
+  const xRange = Math.max(1, endWk - startWk);
+  const xScale = (wk) => padL + ((wk - startWk) / xRange) * innerW;
+  const yScale = (v) => padTop + innerH - (v / maxY) * innerH;
 
   const svg = _rrSvgNS("svg", {
     class: "rr-svg",
@@ -855,151 +835,205 @@ function renderRankRace() {
     preserveAspectRatio: "xMidYMid meet",
   });
 
-  // === gridlines verticais + labels ===
-  const labelEvery = isNarrow
-    ? Math.max(2, Math.ceil(weeks.length / 5))
-    : Math.max(1, Math.ceil(weeks.length / 10));
+  // === Y ticks ===
+  const yStep = maxY <= 5 ? 1 : maxY <= 10 ? 2 : maxY <= 25 ? 5 : 10;
+  const yTicks = [];
+  for (let v = 0; v <= maxY; v += yStep) yTicks.push(v);
+  if (yTicks[yTicks.length - 1] < maxY) yTicks.push(maxY);
+
+  // gridlines horizontais + labels Y
+  yTicks.forEach((v) => {
+    const y = yScale(v);
+    svg.appendChild(_rrSvgNS("line", {
+      class: "rr-grid",
+      x1: padL, y1: y, x2: padL + innerW, y2: y,
+    }));
+    const lbl = _rrSvgNS("text", {
+      class: "rr-y-lbl mono",
+      x: padL - 8, y, dy: ".35em",
+      "text-anchor": "end",
+    });
+    lbl.textContent = v;
+    svg.appendChild(lbl);
+  });
+
+  // === X labels ===
+  const labelEvery = isTiny
+    ? Math.max(2, Math.ceil(weeks.length / 4))
+    : isNarrow
+      ? Math.max(2, Math.ceil(weeks.length / 6))
+      : Math.max(1, Math.ceil(weeks.length / 10));
   weeks.forEach((wk, idx) => {
     const isFirst = idx === 0;
     const isLast = idx === weeks.length - 1;
     if (isFirst || isLast || wk % labelEvery === 0) {
       const x = xScale(wk);
       svg.appendChild(_rrSvgNS("line", {
-        class: "rr-grid",
-        x1: x, y1: padTop - 12, x2: x, y2: padTop + nRows * rowH,
+        class: "rr-tick",
+        x1: x, y1: padTop + innerH, x2: x, y2: padTop + innerH + 5,
       }));
-      const label = _rrSvgNS("text", {
+      const lbl = _rrSvgNS("text", {
         class: "rr-wk-lbl",
-        x, y: padTop - 18,
+        x, y: padTop + innerH + 18,
         "text-anchor": "middle",
       });
-      label.textContent = `W${String(wk).padStart(2, "0")}`;
-      svg.appendChild(label);
+      lbl.textContent = `W${String(wk).padStart(2, "0")}`;
+      svg.appendChild(lbl);
     }
   });
 
   // baseline
   svg.appendChild(_rrSvgNS("line", {
     class: "rr-axis",
-    x1: padL, y1: padTop + nRows * rowH,
-    x2: padL + innerW, y2: padTop + nRows * rowH,
+    x1: padL, y1: padTop + innerH, x2: padL + innerW, y2: padTop + innerH,
   }));
 
-  // lanes horizontais (1 por atleta)
-  for (let r = 0; r < nRows; r++) {
-    svg.appendChild(_rrSvgNS("line", {
-      class: "rr-lane",
-      x1: padL, y1: yScale(r),
-      x2: padL + innerW, y2: yScale(r),
-    }));
-  }
-
-  // === paths e nodes ===
+  // === step lines + nodes ===
   const pathsG = _rrSvgNS("g", { class: "rr-paths" });
   const nodesG = _rrSvgNS("g", { class: "rr-nodes" });
+  const labelsG = _rrSvgNS("g", { class: "rr-end-labels" });
   svg.appendChild(pathsG);
   svg.appendChild(nodesG);
+  svg.appendChild(labelsG);
+
+  const endLabels = [];
 
   athletes.forEach((a) => {
-    const ns = a.closed
-      .filter((n) => weeks.includes(n.wk))
-      .map((n) => ({ wk: n.wk, count: n.count, rank: cumRank[a.nome][n.wk] }))
-      .sort((x, y) => x.wk - y.wk);
+    const ns = a.closed;
     if (!ns.length) return;
 
-    const pts = ns.map((n) => [xScale(n.wk), yScale(n.rank)]);
-    let d;
-    if (pts.length === 1) {
-      const [x, y] = pts[0];
-      const w = Math.max(10, colW * 0.5);
-      d = `M${x - w / 2},${y} L${x + w / 2},${y}`;
-    } else {
-      d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
-      for (let i = 1; i < pts.length; i++) {
-        const [x0, y0] = pts[i - 1];
-        const [x1, y1] = pts[i];
-        const cx = (x0 + x1) / 2;
-        d += ` C${cx.toFixed(2)},${y0.toFixed(2)} ${cx.toFixed(2)},${y1.toFixed(2)} ${x1.toFixed(2)},${y1.toFixed(2)}`;
-      }
-    }
+    // step-line: (startWk,0) → (wk1,0)→(wk1,1) → (wk2,1)→(wk2,2) ... → (endWk, total)
+    const pts = [[xScale(startWk), yScale(0)]];
+    let cum = 0;
+    ns.forEach((n) => {
+      pts.push([xScale(n.wk), yScale(cum)]);
+      cum++;
+      pts.push([xScale(n.wk), yScale(cum)]);
+    });
+    pts.push([xScale(endWk), yScale(cum)]);
 
+    const d = pts.map((p, i) =>
+      `${i === 0 ? "M" : "L"}${p[0].toFixed(2)},${p[1].toFixed(2)}`
+    ).join(" ");
+
+    // halo (hit area)
     const halo = _rrSvgNS("path", {
       class: "rr-halo",
       d, fill: "none",
       stroke: "transparent",
-      "stroke-width": "18",
+      "stroke-width": "16",
       "data-athlete": a.nome,
     });
     pathsG.appendChild(halo);
 
+    // linha visível
     const path = _rrSvgNS("path", {
       class: "rr-line",
       d, fill: "none",
       stroke: a.color,
-      "stroke-width": "2.4",
+      "stroke-width": "2.2",
       "stroke-linecap": "round",
       "stroke-linejoin": "round",
       "data-athlete": a.nome,
     });
     pathsG.appendChild(path);
 
-    ns.forEach((n) => {
-      const c = _rrSvgNS("circle", {
+    // nós (após o degrau de cada semana fechada)
+    ns.forEach((n, i) => {
+      nodesG.appendChild(_rrSvgNS("circle", {
         class: "rr-node",
         cx: xScale(n.wk),
-        cy: yScale(n.rank),
-        r: ns.length === 1 ? "5" : "4.5",
+        cy: yScale(i + 1),
+        r: "3.6",
         fill: a.color,
         stroke: "var(--bg)",
-        "stroke-width": "1.8",
+        "stroke-width": "1.6",
         "data-athlete": a.nome,
         "data-wk": n.wk,
         "data-count": n.count,
-      });
-      nodesG.appendChild(c);
+      }));
+    });
+
+    // end-label: ponto + nome + total à direita
+    endLabels.push({
+      name: a.nome,
+      color: a.color,
+      total: a.total,
+      dataY: yScale(a.total),
     });
   });
 
-  // === LEGENDA (cada atleta tem sua própria linha — sem sobreposição) ===
-  const legendG = _rrSvgNS("g", { class: "rr-legend" });
-  const maxNameLen = isNarrow ? 11 : 18;
-  athletes.forEach((a, i) => {
-    const y = padTop + i * rowH + rowH / 2;
+  // === ordenar e espaçar end-labels (evita sobreposição) ===
+  endLabels.sort((a, b) => a.dataY - b.dataY);
+  const minGap = isNarrow ? 14 : 18;
+  endLabels.forEach((lp, i) => {
+    lp.y = lp.dataY;
+    if (i > 0 && lp.y - endLabels[i - 1].y < minGap) {
+      lp.y = endLabels[i - 1].y + minGap;
+    }
+  });
+  // clamp para dentro do chart
+  endLabels.forEach((lp) => {
+    if (lp.y < padTop) lp.y = padTop;
+    if (lp.y > padTop + innerH) lp.y = padTop + innerH;
+  });
+  // segunda passada de baixo para cima (caso o clamp causou sobreposição)
+  for (let i = endLabels.length - 2; i >= 0; i--) {
+    if (endLabels[i + 1].y - endLabels[i].y < minGap) {
+      endLabels[i].y = endLabels[i + 1].y - minGap;
+    }
+  }
 
-    const hit = _rrSvgNS("rect", {
+  const endX = padL + innerW;
+  const maxNameLen = isTiny ? 6 : (isNarrow ? 9 : 14);
+  endLabels.forEach((lp) => {
+    // ponto final
+    labelsG.appendChild(_rrSvgNS("circle", {
+      class: "rr-leg-dot",
+      cx: endX, cy: lp.dataY,
+      r: "4", fill: lp.color,
+      stroke: "var(--surface)", "stroke-width": 1.6,
+    }));
+    // conector entre o ponto e o texto (se desviou)
+    if (Math.abs(lp.dataY - lp.y) > 1) {
+      labelsG.appendChild(_rrSvgNS("path", {
+        class: "rr-leg-link",
+        d: `M${endX + 5},${lp.dataY.toFixed(2)} L${endX + 14},${lp.y.toFixed(2)}`,
+        fill: "none",
+        stroke: lp.color,
+        "stroke-width": "1.2",
+      }));
+    }
+    // hit area do label
+    labelsG.appendChild(_rrSvgNS("rect", {
       class: "rr-leg-hit",
-      x: 0, y: y - rowH / 2 + 2, width: padL - 4, height: rowH - 4, rx: 6,
+      x: endX + 14, y: lp.y - 10,
+      width: Math.max(40, padR - 18), height: 20, rx: 4,
       fill: "transparent",
-      "data-athlete": a.nome,
-    });
-    const swatch = _rrSvgNS("rect", {
-      class: "rr-leg-sw",
-      x: 10, y: y - 4, width: 8, height: 8, rx: 2,
-      fill: a.color,
-      "data-athlete": a.nome,
-    });
-    const name = _rrSvgNS("text", {
-      class: "rr-leg-name",
-      x: 26, y, dy: ".35em",
-      "data-athlete": a.nome,
-    });
-    name.textContent = a.nome.length > maxNameLen
-      ? a.nome.slice(0, maxNameLen) + "…"
-      : a.nome;
-    const count = _rrSvgNS("text", {
+      "data-athlete": lp.name,
+    }));
+    // total grande
+    const countEl = _rrSvgNS("text", {
       class: "rr-leg-count mono",
-      x: padL - 14, y, dy: ".35em",
-      "text-anchor": "end",
-      "data-athlete": a.nome,
+      x: endX + 18, y: lp.y, dy: ".35em",
+      fill: lp.color,
+      "data-athlete": lp.name,
     });
-    count.textContent = a.total;
-
-    legendG.appendChild(hit);
-    legendG.appendChild(swatch);
-    legendG.appendChild(name);
-    legendG.appendChild(count);
+    countEl.textContent = lp.total;
+    labelsG.appendChild(countEl);
+    // nome (depois do número)
+    if (!isTiny) {
+      const nameEl = _rrSvgNS("text", {
+        class: "rr-leg-name",
+        x: endX + (isNarrow ? 36 : 42), y: lp.y, dy: ".35em",
+        "data-athlete": lp.name,
+      });
+      nameEl.textContent = lp.name.length > maxNameLen
+        ? lp.name.slice(0, maxNameLen) + "…"
+        : lp.name;
+      labelsG.appendChild(nameEl);
+    }
   });
-  svg.appendChild(legendG);
 
   host.appendChild(svg);
 
@@ -1100,8 +1134,8 @@ function renderRankRace() {
     c.addEventListener("click", () => openAthleteView(c.dataset.athlete));
   });
 
-  // legenda → tooltip do atleta
-  legendG.querySelectorAll("[data-athlete]").forEach((el) => {
+  // legenda (end-labels à direita) → tooltip do atleta
+  labelsG.querySelectorAll("[data-athlete]").forEach((el) => {
     el.style.cursor = "pointer";
     el.addEventListener("mouseenter", (e) => { setActive(el.dataset.athlete); showAthlete(el.dataset.athlete, e); });
     el.addEventListener("mousemove", moveTip);
@@ -1124,10 +1158,10 @@ function renderRankRace() {
     gsap.from(nodesG.querySelectorAll(".rr-node"), {
       opacity: 0, duration: 0.4, delay: 0.55, stagger: 0.005, ease: "power2.out",
     });
-    gsap.from(legendG.querySelectorAll(".rr-leg-sw, .rr-leg-name, .rr-leg-count"), {
-      opacity: 0, x: -12, duration: 0.5, stagger: 0.025, ease: "power2.out",
+    gsap.from(labelsG.querySelectorAll(".rr-leg-dot, .rr-leg-name, .rr-leg-count, .rr-leg-link"), {
+      opacity: 0, x: 12, duration: 0.5, stagger: 0.04, ease: "power2.out", delay: 0.8,
     });
-    gsap.from(svg.querySelectorAll(".rr-grid, .rr-wk-lbl, .rr-axis, .rr-lane"), {
+    gsap.from(svg.querySelectorAll(".rr-grid, .rr-tick, .rr-wk-lbl, .rr-y-lbl, .rr-axis"), {
       opacity: 0, duration: 0.5, ease: "power2.out", delay: 0.1, stagger: 0.005,
     });
   }
