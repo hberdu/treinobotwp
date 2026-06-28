@@ -613,8 +613,6 @@ tbody tr.progress-row.is-highlighted {
    ============================================================ */
 .rank-race {
   padding: 1.5rem 2rem 0;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 .rank-race-card { padding: 1.5rem 1.75rem 1.25rem; }
 .rank-race-card .card-head { align-items: flex-start; }
@@ -648,7 +646,10 @@ tbody tr.progress-row.is-highlighted {
   height: auto;
   overflow: visible;
   font-family: inherit;
+  -webkit-user-select: none;
+  user-select: none;
 }
+.rr-svg text { -webkit-user-select: none; user-select: none; }
 
 /* === EIXOS / GRID === */
 .rr-svg .rr-grid {
